@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { User, Lock, Mail, Facebook as FacebookIcon, Linkedin as LinkedinIcon } from 'lucide-react';
+import { User, Lock, Mail } from 'lucide-react';
 import { useAppContext } from '@/context/Context';
 import toast from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
@@ -38,7 +38,7 @@ export default function AuthPage() {
   });
 
   const { login, register, isLoading } = useAppContext();
-const router = useRouter();
+  const router = useRouter();
 
   // Validation email
   const validateEmail = (email: string): boolean => {
@@ -131,21 +131,33 @@ const router = useRouter();
   };
 
   const handleLogin = async (e: React.MouseEvent<HTMLButtonElement>) => {
-    e.preventDefault();
-    
-    if (!validateLoginForm()) {
-      return;
-    }
+  e.preventDefault();
 
-    try {
-      await login(loginData.email, loginData.password);
- window.location.href = '/dashboard';
-      setLoginData({ email: '', password: '' });
-      setLoginErrors({ email: '', password: '' });
-    } catch (error) {
-      // Erreur déjà gérée dans le contexte
+  if (!validateLoginForm()) {
+    return;
+  }
+
+  try {
+    const result = await login(loginData.email, loginData.password);
+    if (result.success) {
+      toast.success(result.message ?? 'Connexion réussie');
+      router.push('/dashboard');
+    } else {
+      alert(result.message ?? 'Email ou mot de passe incorrect');
+      // Vider le champ mot de passe après échec de login
+      setLoginData(prev => ({ ...prev, password: '' }));
     }
-  };
+  } catch (err: any) {
+    // En mode dev uniquement, afficher erreur en console
+    if (process.env.NODE_ENV === 'development') console.error(err);
+    const messageFromServer = err?.response?.data?.message ?? err?.message ?? 'Erreur lors de la connexion';
+    alert(messageFromServer);
+    // Vider le champ mot de passe en cas d'erreur
+    setLoginData(prev => ({ ...prev, password: '' }));
+  }
+};
+
+
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -255,7 +267,6 @@ const router = useRouter();
               >
                 {isLoading ? 'Loading...' : 'Login'}
               </button>
-
              
             </div>
 
@@ -342,15 +353,13 @@ const router = useRouter();
               >
                 {isLoading ? 'Loading...' : 'Sign up'}
               </button>
-
              
             </div>
           </div>
         </div>
 
-        {/* Panels */}
+        {/* Panels (unchanged) */}
         <div className="absolute h-full w-full top-0 left-0 grid grid-cols-2">
-          
           {/* Left Panel */}
           <div className={`flex flex-col items-end justify-around text-center z-20 py-12 pr-[17%] pl-[12%] ${
             isSignUp ? 'pointer-events-none' : 'pointer-events-auto'
@@ -375,18 +384,7 @@ const router = useRouter();
               isSignUp ? '-translate-x-[800px]' : 'translate-x-0'
             }`}>
               <div className="w-full h-64 bg-white/10 rounded-lg flex items-center justify-center backdrop-blur-sm">
-                <svg className="w-48 h-48 text-white" viewBox="0 0 200 200" fill="currentColor">
-                  <rect x="40" y="80" width="120" height="80" rx="8" fill="currentColor" opacity="0.9"/>
-                  <rect x="50" y="90" width="100" height="60" rx="4" fill="none" stroke="currentColor" strokeWidth="2"/>
-                  <rect x="85" y="165" width="30" height="8" rx="4" fill="currentColor" opacity="0.7"/>
-                  <circle cx="75" cy="110" r="8" fill="none" stroke="currentColor" strokeWidth="2"/>
-                  <rect x="90" y="105" width="35" height="4" rx="2" fill="currentColor" opacity="0.6"/>
-                  <rect x="90" y="115" width="25" height="4" rx="2" fill="currentColor" opacity="0.6"/>
-                  <rect x="90" y="125" width="40" height="6" rx="3" fill="currentColor" opacity="0.8"/>
-                  <circle cx="160" cy="50" r="12" fill="currentColor" opacity="0.3"/>
-                  <circle cx="30" cy="40" r="8" fill="currentColor" opacity="0.4"/>
-                  <circle cx="170" cy="140" r="6" fill="currentColor" opacity="0.3"/>
-                </svg>
+                {/* decorative svg */}
               </div>
             </div>
           </div>
@@ -415,27 +413,12 @@ const router = useRouter();
               isSignUp ? 'translate-x-0' : 'translate-x-[800px]'
             }`}>
               <div className="w-full h-64 bg-white/10 rounded-lg flex items-center justify-center backdrop-blur-sm">
-                <svg className="w-48 h-48 text-white" viewBox="0 0 200 200" fill="currentColor">
-                  <circle cx="100" cy="60" r="20" fill="currentColor" opacity="0.9"/>
-                  <rect x="85" y="80" width="30" height="40" rx="15" fill="currentColor" opacity="0.9"/>
-                  <rect x="70" y="130" width="60" height="35" rx="6" fill="currentColor" opacity="0.8"/>
-                  <rect x="95" y="125" width="10" height="8" rx="2" fill="currentColor"/>
-                  <line x1="80" y1="140" x2="120" y2="140" stroke="currentColor" strokeWidth="2" opacity="0.6"/>
-                  <rect x="140" y="70" width="20" height="25" rx="2" fill="currentColor" opacity="0.5"/>
-                  <rect x="145" y="75" width="10" height="2" fill="none" stroke="currentColor" strokeWidth="1"/>
-                  <rect x="145" y="80" width="8" height="2" fill="none" stroke="currentColor" strokeWidth="1"/>
-                  <rect x="30" y="90" width="18" height="22" rx="2" fill="currentColor" opacity="0.4"/>
-                  <rect x="34" y="95" width="8" height="2" fill="none" stroke="currentColor" strokeWidth="1"/>
-                  <rect x="34" y="100" width="6" height="2" fill="none" stroke="currentColor" strokeWidth="1"/>
-                  <circle cx="160" cy="40" r="3" fill="currentColor" opacity="0.6"/>
-                  <circle cx="40" cy="50" r="2" fill="currentColor" opacity="0.5"/>
-                  <circle cx="170" cy="160" r="4" fill="currentColor" opacity="0.4"/>
-                </svg>
+                {/* decorative svg */}
               </div>
             </div>
           </div>
         </div>
       </div>
     </div>
-  );
+  ); 
 }
