@@ -133,27 +133,20 @@ export default function AuthPage() {
   const handleLogin = async (e: React.MouseEvent<HTMLButtonElement>) => {
   e.preventDefault();
 
-  if (!validateLoginForm()) {
-    return;
-  }
+  if (!validateLoginForm()) return;
 
   try {
     const result = await login(loginData.email, loginData.password);
     if (result.success) {
-      toast.success(result.message ?? 'Connexion réussie');
-      router.push('/dashboard');
+      toast.success(result.message ?? "Connexion réussie");
+      router.push("/dashboard");
     } else {
-      alert(result.message ?? 'Email ou mot de passe incorrect');
-      // Vider le champ mot de passe après échec de login
-      setLoginData(prev => ({ ...prev, password: '' }));
+      toast.error(result.message ?? "Email ou mot de passe incorrect");
+      setLoginData((prev) => ({ ...prev, password: "" }));
     }
-  } catch (err: any) {
-    // En mode dev uniquement, afficher erreur en console
-    if (process.env.NODE_ENV === 'development') console.error(err);
-    const messageFromServer = err?.response?.data?.message ?? err?.message ?? 'Erreur lors de la connexion';
-    alert(messageFromServer);
-    // Vider le champ mot de passe en cas d'erreur
-    setLoginData(prev => ({ ...prev, password: '' }));
+  } catch (err) {
+    toast.error("Erreur lors de la connexion");
+    setLoginData((prev) => ({ ...prev, password: "" }));
   }
 };
 

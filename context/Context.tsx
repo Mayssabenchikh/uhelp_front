@@ -13,50 +13,99 @@ interface AppProviderType {
 }
 
 const AppContext = createContext<AppProviderType | undefined>(undefined);
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
+// axios defaults
 axios.defaults.baseURL = '/';
-axios.defaults.withCredentials = true;
+axios.defaults.withCredentials = true; // utile si tu utilises cookie-based (Sanctum)
 
 export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   const [isLoading, setIsLoading] = useState(false);
-  const [token, setToken] = useState<string | null>(null);
+
+  // initialisation synchrone du token (evite requêtes côté serveur/client mismatch)
+  const [token, setToken] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null;
+    const t = localStorage.getItem('access_token') || localStorage.getItem('token') || null;
+    if (t) {
+      axios.defaults.headers.common['Authorization'] = `Bearer ${t}`;
+    }
+    return t;
+  });
+
   const [user, setUser] = useState<any>(null);
 
-  // Fonction pour récupérer le cookie CSRF
+  // Fonction pour récupérer le cookie CSRF (pour Sanctum)
   const getCsrfToken = async () => {
     try {
       await axios.get('/sanctum/csrf-cookie');
     } catch (_error) {
-      // suppression console.error
-      // on pourrait ajouter un toast visuel si besoin
+      // on ignore l'erreur ici (optionnel: afficher toast)
     }
   };
 
-  // Restaurer le token et l'utilisateur au montage
+  // Récupérer l'utilisateur uniquement si token présent
   useEffect(() => {
-    const savedToken = localStorage.getItem('access_token');
-    if (savedToken) {
-      setToken(savedToken);
-      axios.defaults.headers.common['Authorization'] = `Bearer ${savedToken}`;
-
-      axios.get('/api/users')
-        .then(res => setUser(res.data))
-        .catch(err => {
-          if (err.response?.status === 401) {
-            logout();
-            toast.error('Session expired. Please login again.');
-          }
-          // suppression console.error
-        });
+    if (!token) {
+      console.log('[AppProvider] no token -> skip fetching /api/users');
+      return;
     }
-  }, []);
 
+    let mounted = true;
+    let attempts = 0;
+    const maxRetries = 3;
+
+    const fetchUser = async () => {
+      attempts++;
+      setIsLoading(true);
+      try {
+        console.log(`[AppProvider] fetching /api/users (attempt ${attempts})`);
+const res = await axios.get('/api/me');
+setUser(res.data.user);
+        if (!mounted) return;
+        // backend peut renvoyer user sous res.data.user ou directement res.data
+        const payload = res.data?.user ?? res.data;
+        console.log('[AppProvider] /api/users payload:', payload);
+        setUser(payload);
+      } catch (err: any) {
+        const status = err?.response?.status;
+        console.log('[AppProvider] /api/users error:', err?.response?.data ?? err?.message ?? err);
+        if (status === 401) {
+          // token invalide -> logout
+          console.log('[AppProvider] 401 from /api/users -> logout');
+          logout();
+          toast.error('Session expired. Please login again.');
+        } else if (status === 429 && attempts < maxRetries) {
+          // throttled -> retry with backoff
+          const retryAfterHeader = err.response?.headers?.['retry-after'];
+          const retryAfter = retryAfterHeader ? Number(retryAfterHeader) : Math.min(2 ** attempts, 30);
+          console.log(`[AppProvider] 429 -> retry in ${retryAfter}s (attempt ${attempts})`);
+          setTimeout(() => {
+            if (mounted) fetchUser();
+          }, retryAfter * 1000);
+        } else {
+          if (status === 429) {
+            toast.error('Trop de requêtes vers le serveur. Réessaye plus tard.');
+          } else {
+            // cas générique
+            toast.error('Impossible de récupérer l’utilisateur.');
+          }
+        }
+      } finally {
+        if (mounted) setIsLoading(false);
+      }
+    };
+
+    fetchUser();
+
+    return () => {
+      mounted = false;
+    };
+  }, [token]);
+
+  // register
   const register = async (name: string, email: string, password: string) => {
     setIsLoading(true);
     try {
-      await getCsrfToken(); // CSRF avant register
-
+      await getCsrfToken(); // si tu utilises Sanctum
       const res = await axios.post(
         '/api/register',
         { name, email, password, password_confirmation: password },
@@ -68,37 +117,39 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
         }
       );
 
-      toast.success(res.data.message);
+      toast.success(res.data?.message ?? 'Registered');
 
-      if (res.data.access_token) {
-        const newToken = res.data.access_token;
-        localStorage.setItem('access_token', newToken);
+      // si backend renvoie un token
+      const newToken = res.data?.access_token ?? res.data?.token ?? null;
+      if (newToken) {
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('access_token', newToken);
+          localStorage.setItem('token', newToken);
+        }
         setToken(newToken);
         axios.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
-        setUser(res.data.user);
+      }
+
+      // set user si présent dans la réponse
+      const payloadUser = res.data?.user ?? res.data;
+      if (payloadUser) {
+        setUser(payloadUser);
       }
     } catch (err: any) {
-      // suppression console.error
-
-      if (err.response) {
-        const errorData = err.response.data;
-        if (errorData.errors) {
-          Object.values(errorData.errors)
-            .flat()
-            .forEach((message: any) => toast.error(message));
-        } else if (errorData.message) {
-          toast.error(errorData.message);
-        } else {
-          toast.error('Registration failed. Please try again.');
-        }
+      const errorData = err?.response?.data;
+      if (errorData?.errors) {
+        Object.values(errorData.errors).flat().forEach((m: any) => toast.error(String(m)));
+      } else if (errorData?.message) {
+        toast.error(String(errorData.message));
       } else {
-        toast.error('Network error. Please check your connection.');
+        toast.error('Registration failed. Please try again.');
       }
     } finally {
       setIsLoading(false);
     }
   };
 
+  // login
   const login = async (email: string, password: string): Promise<{ success: boolean; message?: string }> => {
     setIsLoading(true);
     try {
@@ -116,16 +167,21 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
         }
       );
 
-      const newToken = res.data?.access_token ?? null;
+      const newToken = res.data?.access_token ?? res.data?.token ?? null;
+
       if (newToken) {
-        localStorage.setItem('access_token', newToken);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('access_token', newToken);
+          localStorage.setItem('token', newToken);
+        }
         setToken(newToken);
         axios.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
       }
 
-      setUser(res.data?.user ?? null);
-      setIsLoading(false);
+      const payloadUser = res.data?.user ?? res.data;
+      setUser(payloadUser ?? null);
 
+      setIsLoading(false);
       return { success: true, message: res.data?.message ?? 'Login successful' };
     } catch (err: any) {
       setIsLoading(false);
@@ -135,31 +191,31 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
 
       if (validationErrors) {
         const first = Object.values(validationErrors).flat()[0] ?? 'Validation error';
-        // suppression console.error
         toast.error(String(first));
         return { success: false, message: String(first) };
       }
 
       if (serverMessage) {
-        // suppression console.error
         toast.error(String(serverMessage));
         return { success: false, message: String(serverMessage) };
       }
 
-      // Erreur réseau / inconnue
       const fallback = err?.request ? 'Cannot connect to server.' : 'Network error. Please try again.';
-      // suppression console.error
       toast.error(fallback);
       return { success: false, message: fallback };
     }
   };
 
+  // logout
+  
   const logout = () => {
-    axios.post('/api/logout', {}, {
-      headers: { Authorization: `Bearer ${token}` }
-    }).catch(() => {}); // suppression console.error
+    // Essaye d'appeler le logout sur le backend (silencieux si échec)
+    axios.post('/api/logout', {}, { headers: { Authorization: `Bearer ${token}` } }).catch(() => {});
 
-    localStorage.removeItem('access_token');
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('token');
+    }
     setToken(null);
     setUser(null);
     delete axios.defaults.headers.common['Authorization'];
