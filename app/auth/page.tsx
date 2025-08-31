@@ -139,7 +139,7 @@ export default function AuthPage() {
     const result = await login(loginData.email, loginData.password);
     if (result.success) {
       toast.success(result.message ?? "Connexion réussie");
-      router.push("/dashboard");
+      router.push("/admindashboard");
     } else {
       toast.error(result.message ?? "Email ou mot de passe incorrect");
       setLoginData((prev) => ({ ...prev, password: "" }));
