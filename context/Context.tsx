@@ -1,3 +1,4 @@
+// context/Context.tsx
 'use client';
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import axios from 'axios';
@@ -14,38 +15,34 @@ interface AppProviderType {
 
 const AppContext = createContext<AppProviderType | undefined>(undefined);
 
-// axios defaults
-axios.defaults.baseURL = '/';
-axios.defaults.withCredentials = true; // utile si tu utilises cookie-based (Sanctum)
+// configure axios baseURL to point to backend root (without trailing /api)
+const API_ROOT = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+axios.defaults.baseURL = API_ROOT;
+axios.defaults.withCredentials = false; // IMPORTANT: false -> no cookies
 
+const setAxiosAuthHeader = (token?: string | null) => {
+  if (token) axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+  else delete axios.defaults.headers.common['Authorization'];
+};
+
+/**
+ * AppProvider - export nommé
+ */
 export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   const [isLoading, setIsLoading] = useState(false);
 
-  // initialisation synchrone du token (evite requêtes côté serveur/client mismatch)
   const [token, setToken] = useState<string | null>(() => {
     if (typeof window === 'undefined') return null;
     const t = localStorage.getItem('access_token') || localStorage.getItem('token') || null;
-    if (t) {
-      axios.defaults.headers.common['Authorization'] = `Bearer ${t}`;
-    }
+    if (t) setAxiosAuthHeader(t);
     return t;
   });
 
   const [user, setUser] = useState<any>(null);
 
-  // Fonction pour récupérer le cookie CSRF (pour Sanctum)
-  const getCsrfToken = async () => {
-    try {
-      await axios.get('/sanctum/csrf-cookie');
-    } catch (_error) {
-      // on ignore l'erreur ici (optionnel: afficher toast)
-    }
-  };
-
-  // Récupérer l'utilisateur uniquement si token présent
   useEffect(() => {
     if (!token) {
-      console.log('[AppProvider] no token -> skip fetching /api/users');
+      console.log('[AppProvider] no token -> skip fetching /api/me');
       return;
     }
 
@@ -57,37 +54,25 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
       attempts++;
       setIsLoading(true);
       try {
-        console.log(`[AppProvider] fetching /api/users (attempt ${attempts})`);
-const res = await axios.get('/api/me');
-setUser(res.data.user);
+        console.log(`[AppProvider] fetching /api/me (attempt ${attempts})`);
+        const res = await axios.get('/api/me');
         if (!mounted) return;
-        // backend peut renvoyer user sous res.data.user ou directement res.data
         const payload = res.data?.user ?? res.data;
-        console.log('[AppProvider] /api/users payload:', payload);
         setUser(payload);
       } catch (err: any) {
         const status = err?.response?.status;
-        console.log('[AppProvider] /api/users error:', err?.response?.data ?? err?.message ?? err);
+        console.log('[AppProvider] /api/me error:', err?.response?.data ?? err?.message ?? err);
         if (status === 401) {
-          // token invalide -> logout
-          console.log('[AppProvider] 401 from /api/users -> logout');
           logout();
-          toast.error('Session expired. Please login again.');
+          toast.error('Session expirée. Connecte-toi à nouveau.');
         } else if (status === 429 && attempts < maxRetries) {
-          // throttled -> retry with backoff
           const retryAfterHeader = err.response?.headers?.['retry-after'];
           const retryAfter = retryAfterHeader ? Number(retryAfterHeader) : Math.min(2 ** attempts, 30);
-          console.log(`[AppProvider] 429 -> retry in ${retryAfter}s (attempt ${attempts})`);
           setTimeout(() => {
             if (mounted) fetchUser();
           }, retryAfter * 1000);
         } else {
-          if (status === 429) {
-            toast.error('Trop de requêtes vers le serveur. Réessaye plus tard.');
-          } else {
-            // cas générique
-            toast.error('Impossible de récupérer l’utilisateur.');
-          }
+          toast.error('Impossible de récupérer l’utilisateur.');
         }
       } finally {
         if (mounted) setIsLoading(false);
@@ -96,30 +81,23 @@ setUser(res.data.user);
 
     fetchUser();
 
-    return () => {
-      mounted = false;
-    };
+    return () => { mounted = false; };
   }, [token]);
 
-  // register
   const register = async (name: string, email: string, password: string) => {
     setIsLoading(true);
     try {
-      await getCsrfToken(); // si tu utilises Sanctum
-      const res = await axios.post(
-        '/api/register',
-        { name, email, password, password_confirmation: password },
-        {
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json'
-          }
-        }
-      );
+      const res = await axios.post('/api/register', {
+        name,
+        email,
+        password,
+        password_confirmation: password,
+      }, {
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json' }
+      });
 
       toast.success(res.data?.message ?? 'Registered');
 
-      // si backend renvoie un token
       const newToken = res.data?.access_token ?? res.data?.token ?? null;
       if (newToken) {
         if (typeof window !== 'undefined') {
@@ -127,14 +105,11 @@ setUser(res.data.user);
           localStorage.setItem('token', newToken);
         }
         setToken(newToken);
-        axios.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
+        setAxiosAuthHeader(newToken);
       }
 
-      // set user si présent dans la réponse
       const payloadUser = res.data?.user ?? res.data;
-      if (payloadUser) {
-        setUser(payloadUser);
-      }
+      if (payloadUser) setUser(payloadUser);
     } catch (err: any) {
       const errorData = err?.response?.data;
       if (errorData?.errors) {
@@ -144,38 +119,27 @@ setUser(res.data.user);
       } else {
         toast.error('Registration failed. Please try again.');
       }
+      throw err;
     } finally {
       setIsLoading(false);
     }
   };
 
-  // login
   const login = async (email: string, password: string): Promise<{ success: boolean; message?: string }> => {
     setIsLoading(true);
     try {
-      await getCsrfToken();
-
-      const res = await axios.post(
-        '/api/login',
-        { email, password },
-        {
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json',
-            'X-Requested-With': 'XMLHttpRequest'
-          }
-        }
-      );
+      const res = await axios.post('/api/login', { email, password }, {
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json' }
+      });
 
       const newToken = res.data?.access_token ?? res.data?.token ?? null;
-
       if (newToken) {
         if (typeof window !== 'undefined') {
           localStorage.setItem('access_token', newToken);
           localStorage.setItem('token', newToken);
         }
         setToken(newToken);
-        axios.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
+        setAxiosAuthHeader(newToken);
       }
 
       const payloadUser = res.data?.user ?? res.data;
@@ -185,7 +149,6 @@ setUser(res.data.user);
       return { success: true, message: res.data?.message ?? 'Login successful' };
     } catch (err: any) {
       setIsLoading(false);
-
       const validationErrors = err?.response?.data?.errors ?? null;
       const serverMessage = err?.response?.data?.message ?? null;
 
@@ -206,19 +169,15 @@ setUser(res.data.user);
     }
   };
 
-  // logout
-  
   const logout = () => {
-    // Essaye d'appeler le logout sur le backend (silencieux si échec)
     axios.post('/api/logout', {}, { headers: { Authorization: `Bearer ${token}` } }).catch(() => {});
-
     if (typeof window !== 'undefined') {
       localStorage.removeItem('access_token');
       localStorage.removeItem('token');
     }
     setToken(null);
     setUser(null);
-    delete axios.defaults.headers.common['Authorization'];
+    setAxiosAuthHeader(null);
     toast.success('Logged out successfully');
   };
 
@@ -229,6 +188,9 @@ setUser(res.data.user);
   );
 };
 
+/**
+ * useAppContext - export nommé pour que tes composants puissent l'importer
+ */
 export const useAppContext = () => {
   const ctx = useContext(AppContext);
   if (!ctx) throw new Error('useAppContext must be used within AppProvider');

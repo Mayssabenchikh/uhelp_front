@@ -3,12 +3,12 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
-  Ticket,
+  Ticket as TicketIcon,
   Clock,
   CheckCircle,
   UserCheck,
 } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { cn, API_BASE, getAuthHeaders } from '@/lib/utils'
 import toast from 'react-hot-toast'
 import { useRouter } from 'next/navigation'
 
@@ -43,29 +43,14 @@ interface Agent {
   department?: string | null
 }
 
-// Helper: auth headers
-function getAuthHeaders(contentTypeJson = false): Record<string, string> {
-  const headers: Record<string, string> = { Accept: 'application/json' }
-
-  if (typeof window !== 'undefined') {
-    const token = localStorage.getItem('access_token') || localStorage.getItem('token')
-    if (token) {
-      headers.Authorization = `Bearer ${token}`
-    }
-  }
-
-  if (contentTypeJson) headers['Content-Type'] = 'application/json'
-
-  return headers
-}
+// Helper: fetch headers already centralized in lib/utils.getAuthHeaders
 
 // fetchDashboard
 export async function fetchDashboard(): Promise<DashboardData> {
   const headers = getAuthHeaders()
-  const res = await fetch('/api/dashboard', {
+  const res = await fetch(`${API_BASE}/api/dashboard`, {
     method: 'GET',
     headers,
-    credentials: 'include',
   })
 
   if (!res.ok) {
@@ -93,9 +78,9 @@ export async function fetchDashboard(): Promise<DashboardData> {
     ticket_id: t.ticket_id ?? ('TK-' + String(t.id).padStart(3, '0')),
     customer: { name: t.customer?.name ?? 'Unknown' },
     subject: t.subject ?? t.titre ?? 'No subject',
-    status: t.status ?? t.statut ?? 'open',
+    status: (t.status ?? t.statut ?? 'open') as any,
     assigned_agent: t.assigned_agent ? { name: t.assigned_agent.name } : (t.agent ? { name: t.agent.name } : undefined),
-    priority: t.priority ?? t.priorite ?? 'low',
+    priority: (t.priority ?? t.priorite ?? 'low') as any,
     created_at: t.created_at ?? new Date().toISOString(),
   }))
 
@@ -104,10 +89,9 @@ export async function fetchDashboard(): Promise<DashboardData> {
 
 // assignAgent
 export async function assignAgent(ticketId: number | string, agentId: number | string) {
-  const res = await fetch(`/api/tickets/${ticketId}/assign`, {
+  const res = await fetch(`${API_BASE}/api/tickets/${ticketId}/assign`, {
     method: 'POST',
     headers: getAuthHeaders(true),
-    credentials: 'include',
     body: JSON.stringify({ agent_id: Number(agentId) }),
   })
   if (!res.ok) {
@@ -141,7 +125,7 @@ export default function DashboardPage() {
   const { data: agentsData, isLoading: agentsLoading } = useQuery<Agent[]>({
     queryKey: ['agents'],
     queryFn: async () => {
-      const res = await fetch('/api/agents', { headers: getAuthHeaders(), credentials: 'include' })
+      const res = await fetch(`${API_BASE}/api/agents`, { headers: getAuthHeaders() })
       if (!res.ok) {
         const txt = await res.text()
         throw new Error(`Failed to fetch agents (${res.status}): ${txt}`)
@@ -260,7 +244,7 @@ export default function DashboardPage() {
         <div className="bg-white rounded-lg shadow-lg p-6">
           <div className="flex items-center">
             <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-              <Ticket className="w-6 h-6 text-blue-600" />
+              <TicketIcon className="w-6 h-6 text-blue-600" />
             </div>
             <div className="ml-4">
               <p className="text-2xl font-bold text-gray-800">{data?.stats.total_tickets ?? 0}</p>
@@ -319,7 +303,13 @@ export default function DashboardPage() {
 
           <div className="flex items-center gap-3">
             {/* Search input (local) */}
-           
+            <input
+              type="text"
+              placeholder="Search tickets..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+            />
 
             <button
               onClick={() => router.push('/admindashboard/globaltickets')}

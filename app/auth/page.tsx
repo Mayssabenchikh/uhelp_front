@@ -5,7 +5,8 @@ import { User, Lock, Mail } from 'lucide-react';
 import { useAppContext } from '@/context/Context';
 import toast from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
-
+import image1 from '../../public/images/image1.png';
+import image2 from '../../public/images/image2.png';
 interface LoginErrors {
   email: string;
   password: string;
@@ -378,6 +379,7 @@ export default function AuthPage() {
             }`}>
               <div className="w-full h-64 bg-white/10 rounded-lg flex items-center justify-center backdrop-blur-sm">
                 {/* decorative svg */}
+               <img src={image1.src} alt="decorative"/>
               </div>
             </div>
           </div>
@@ -407,6 +409,8 @@ export default function AuthPage() {
             }`}>
               <div className="w-full h-64 bg-white/10 rounded-lg flex items-center justify-center backdrop-blur-sm">
                 {/* decorative svg */}
+                <img src={image2.src} alt="decorative"/>
+
               </div>
             </div>
           </div>
