@@ -17,17 +17,18 @@ interface TicketStats {
   total_tickets: number
   open_tickets: number
   resolved_tickets: number
-  active_customers: number
+  total_customers: number
 }
 
 interface RecentTicket {
   id: string
   ticket_id: string
-  customer: { name: string }
+  customer: { id?: string | number; name: string }
   subject: string
   status: 'open' | 'pending' | 'resolved' | 'closed' | string
   assigned_agent?: { name: string } | null
   priority: 'low' | 'medium' | 'high' | string
+  category?: string
   created_at: string
 }
 
@@ -66,21 +67,53 @@ export async function fetchDashboard(): Promise<DashboardData> {
 
   const json = await res.json()
 
+  // Compute total_customers robustly:
+  let totalCustomers = 0
+  if (typeof json.stats?.total_customers === 'number') {
+    totalCustomers = json.stats.total_customers
+  } else if (typeof json.stats?.active_customers === 'number') {
+    totalCustomers = json.stats.active_customers
+  } else if (Array.isArray(json.customers)) {
+    totalCustomers = json.customers.length
+  } else {
+    // Fall back: infer unique customers from available tickets arrays
+    const customerSet = new Set<string>()
+    const ticketSources = [
+      ...(Array.isArray(json.recent_tickets) ? json.recent_tickets : []),
+      ...(Array.isArray(json.tickets) ? json.tickets : []),
+    ]
+    ticketSources.forEach((t: any) => {
+      if (t?.customer?.id !== undefined && t.customer.id !== null) {
+        customerSet.add(String(t.customer.id))
+      } else if (t?.client_id !== undefined && t.client_id !== null) {
+        customerSet.add(String(t.client_id))
+      } else if (t?.customer?.name) {
+        // Use normalized name as last resort (lowercase trimmed)
+        customerSet.add(String(t.customer.name).trim().toLowerCase())
+      }
+    })
+    totalCustomers = customerSet.size
+  }
+
   const stats: TicketStats = {
-    total_tickets: json.stats?.total_tickets ?? 0,
-    open_tickets: json.stats?.open_tickets ?? 0,
-    resolved_tickets: json.stats?.resolved_tickets ?? 0,
-    active_customers: json.stats?.active_customers ?? 0,
+    total_tickets: json.stats?.total_tickets ?? json.total_tickets ?? 0,
+    open_tickets: json.stats?.open_tickets ?? json.open_tickets ?? 0,
+    resolved_tickets: json.stats?.resolved_tickets ?? json.resolved_tickets ?? 0,
+    total_customers: totalCustomers,
   }
 
   const recent_tickets: RecentTicket[] = (json.recent_tickets ?? []).map((t: any) => ({
     id: String(t.id),
     ticket_id: t.ticket_id ?? ('TK-' + String(t.id).padStart(3, '0')),
-    customer: { name: t.customer?.name ?? 'Unknown' },
+    customer: {
+      id: t.customer?.id ?? t.client_id ?? undefined,
+      name: t.customer?.name ?? t.client_name ?? 'Unknown'
+    },
     subject: t.subject ?? t.titre ?? 'No subject',
     status: (t.status ?? t.statut ?? 'open') as any,
     assigned_agent: t.assigned_agent ? { name: t.assigned_agent.name } : (t.agent ? { name: t.agent.name } : undefined),
     priority: (t.priority ?? t.priorite ?? 'low') as any,
+    category: t.category ?? t.categorie ?? (t.raw?.category ?? undefined),
     created_at: t.created_at ?? new Date().toISOString(),
   }))
 
@@ -131,7 +164,6 @@ export default function DashboardPage() {
         throw new Error(`Failed to fetch agents (${res.status}): ${txt}`)
       }
       const json = await res.json()
-      // backend returns { data: [...] } in your AgentController@index
       return json.data ?? json
     },
     staleTime: 1000 * 60,
@@ -142,7 +174,6 @@ export default function DashboardPage() {
     mutationFn: ({ ticketId, agentId }: { ticketId: number | string, agentId: number | string }) =>
       assignAgent(ticketId, agentId),
     onMutate: async ({ ticketId, agentId }) => {
-      // optimistic update: update cache for dashboard recent_tickets
       await queryClient.cancelQueries({ queryKey: ['dashboard'] })
       const previous = queryClient.getQueryData<DashboardData>(['dashboard'])
       if (previous) {
@@ -175,7 +206,7 @@ export default function DashboardPage() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'open': return 'bg-blue-500 text-white'
-      case 'pending': return 'bg-yellow-500 text-white'
+      case 'in_progress': return 'bg-yellow-500 text-white'
       case 'resolved': return 'bg-green-500 text-white'
       case 'closed': return 'bg-gray-500 text-white'
       default: return 'bg-gray-500 text-white'
@@ -191,18 +222,30 @@ export default function DashboardPage() {
     }
   }
 
-  // client-side filtering for search
+  // Filter tickets to only those created within the last 30 days
+  const ticketsLast30Days = useMemo(() => {
+    const now = Date.now()
+    const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000
+    return (data?.recent_tickets ?? []).filter(t => {
+      if (!t?.created_at) return false
+      const parsed = Date.parse(t.created_at)
+      if (isNaN(parsed)) return false
+      return (now - parsed) <= THIRTY_DAYS_MS
+    })
+  }, [data])
+
+  // client-side filtering for search applied on ticketsLast30Days
   const filteredTickets = useMemo(() => {
     const q = searchTerm.trim().toLowerCase()
-    if (!q) return data?.recent_tickets ?? []
-    return (data?.recent_tickets ?? []).filter(t => {
+    if (!q) return ticketsLast30Days
+    return ticketsLast30Days.filter(t => {
       return (
         String(t.ticket_id).toLowerCase().includes(q) ||
         (t.customer?.name ?? '').toLowerCase().includes(q) ||
         (t.subject ?? '').toLowerCase().includes(q)
       )
     })
-  }, [data, searchTerm])
+  }, [ticketsLast30Days, searchTerm])
 
   if (!isMounted) {
     return (
@@ -279,15 +322,15 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Active Customers */}
+        {/* Total Customers */}
         <div className="bg-white rounded-lg shadow-lg p-6">
           <div className="flex items-center">
             <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
               <UserCheck className="w-6 h-6 text-orange-600" />
             </div>
             <div className="ml-4">
-              <p className="text-2xl font-bold text-gray-800">{data?.stats.active_customers ?? 0}</p>
-              <p className="text-gray-600 text-sm">Active Customers</p>
+              <p className="text-2xl font-bold text-gray-800">{data?.stats.total_customers ?? 0}</p>
+              <p className="text-gray-600 text-sm">Total Customers</p>
             </div>
           </div>
         </div>
@@ -298,7 +341,9 @@ export default function DashboardPage() {
         <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between gap-4">
           <div>
             <h3 className="text-lg font-semibold text-gray-800">Recent Tickets</h3>
-            <p className="text-sm text-gray-500">Latest tickets from the last 30 days</p>
+            <p className="text-sm text-gray-500">
+              Latest tickets from the last 30 days 
+            </p>
           </div>
 
           <div className="flex items-center gap-3">
@@ -330,6 +375,7 @@ export default function DashboardPage() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Assigned Agent</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Priority</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
               </tr>
             </thead>
@@ -370,13 +416,16 @@ export default function DashboardPage() {
                       {String(ticket.priority).charAt(0).toUpperCase() + String(ticket.priority).slice(1)}
                     </span>
                   </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                    {ticket.category ? ticket.category.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : '—'}
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatDate(ticket.created_at)}</td>
                 </tr>
               ))}
 
               {filteredTickets.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
+                  <td colSpan={8} className="px-6 py-8 text-center text-gray-500">
                     No tickets found.
                   </td>
                 </tr>

@@ -21,6 +21,7 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans);
 }
-html,body,#root {
+html, body {
   height: 100%;
+  overflow: auto;
 }
