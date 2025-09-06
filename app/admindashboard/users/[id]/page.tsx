@@ -16,11 +16,7 @@ import {
   AlertCircle,
   CheckCircle,
   Clock,
-  Trash2,
-  MoreVertical,
-  Activity,
   FileText,
-  Settings,
   ExternalLink
 } from 'lucide-react'
 import { cn, API_BASE, getAuthHeaders } from '@/lib/utils'
@@ -30,7 +26,7 @@ interface User {
   id: number
   name: string
   email: string
-  role: 'agent' | 'client'
+  role: 'agent' | 'client' | string
   phone_number?: string
   location?: string
   profile_photo?: string
@@ -64,6 +60,44 @@ async function fetchUser(id: string): Promise<User> {
   return json.data ?? json
 }
 
+async function fetchTicketCountForUser(userId: string, role: string, status?: string): Promise<number> {
+  // Only compute counts for agents/clients. For other roles fallback to 0.
+  if (!userId) return 0
+  const params = new URLSearchParams()
+  params.set('per_page', '1') // we only need pagination meta.total
+
+  if (role === 'agent') {
+    params.set('assigned_agent', String(userId))
+  } else if (role === 'client') {
+    params.set('client_id', String(userId))
+  } else {
+    // If role unknown, attempt client_id first then assigned_agent as fallback is risky.
+    return 0
+  }
+
+  if (status) params.set('status', status)
+
+  const url = `${API_BASE}/api/tickets?${params.toString()}`
+  const res = await fetch(url, { headers: getAuthHeaders() })
+  if (!res.ok) {
+    const text = await res.text()
+    throw new Error(`Failed to fetch tickets: ${text}`)
+  }
+
+  const json = await res.json()
+
+  // Laravel paginator returns "total" at top-level; other APIs may use meta.total
+  if (typeof json.total === 'number') return json.total
+  if (json.meta && typeof json.meta.total === 'number') return json.meta.total
+  // Fallback: if an array returned, use length
+  if (Array.isArray(json)) return json.length
+
+  // Last resort: try data.length
+  if (json.data && Array.isArray(json.data)) return json.data.length
+
+  return 0
+}
+
 export default function UserDetailPage() {
   const router = useRouter()
   const params = useParams()
@@ -81,6 +115,23 @@ export default function UserDetailPage() {
     queryFn: () => fetchUser(userId),
     enabled: isMounted && !!userId
   })
+
+  // Ticket counts (total and resolved). Active = total - resolved.
+  const totalTicketsQuery = useQuery<number, Error>({
+    queryKey: ['user', userId, 'tickets', 'total'],
+    queryFn: () => fetchTicketCountForUser(userId, user!.role, undefined),
+    enabled: !!user
+  })
+
+  const resolvedTicketsQuery = useQuery<number, Error>({
+    queryKey: ['user', userId, 'tickets', 'resolved'],
+    queryFn: () => fetchTicketCountForUser(userId, user!.role, 'closed'),
+    enabled: !!user
+  })
+
+  const totalTickets = Number(totalTicketsQuery.data ?? 0)
+  const resolvedTickets = Number(resolvedTicketsQuery.data ?? 0)
+  const activeTickets = Math.max(0, totalTickets - resolvedTickets)
 
   const getRoleColor = (role: string) => {
     switch (role) {
@@ -223,6 +274,7 @@ export default function UserDetailPage() {
     )
   }
 
+  // Show the page
   return (
     <div className="max-w-6xl mx-auto space-y-6">
       {/* Header */}
@@ -256,11 +308,9 @@ export default function UserDetailPage() {
         </div>
 
         <div className="flex items-center gap-3">
-          
-          
           <button
             onClick={() => router.push(`/admindashboard/users/${userId}/edit`)}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 transition-colors"
           >
             <Edit className="w-4 h-4" />
             Edit User
@@ -436,7 +486,9 @@ export default function UserDetailPage() {
               <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
                 <div>
                   <p className="text-sm font-medium text-blue-900">Total Tickets</p>
-                  <p className="text-2xl font-bold text-blue-700">{user.tickets_count || 0}</p>
+                  <p className="text-2xl font-bold text-blue-700">
+                    {totalTicketsQuery.isLoading ? '…' : totalTickets}
+                  </p>
                 </div>
                 <FileText className="w-8 h-8 text-blue-500" />
               </div>
@@ -444,7 +496,9 @@ export default function UserDetailPage() {
               <div className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg">
                 <div>
                   <p className="text-sm font-medium text-yellow-900">Active Tickets</p>
-                  <p className="text-2xl font-bold text-yellow-700">{user.active_tickets_count || 0}</p>
+                  <p className="text-2xl font-bold text-yellow-700">
+                    {totalTicketsQuery.isLoading || resolvedTicketsQuery.isLoading ? '…' : activeTickets}
+                  </p>
                 </div>
                 <Clock className="w-8 h-8 text-yellow-500" />
               </div>
@@ -452,16 +506,15 @@ export default function UserDetailPage() {
               <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
                 <div>
                   <p className="text-sm font-medium text-green-900">Resolved</p>
-                  <p className="text-2xl font-bold text-green-700">{user.resolved_tickets_count || 0}</p>
+                  <p className="text-2xl font-bold text-green-700">
+                    {resolvedTicketsQuery.isLoading ? '…' : resolvedTickets}
+                  </p>
                 </div>
                 <CheckCircle className="w-8 h-8 text-green-500" />
               </div>
             </div>
-            
-           
           </div>
 
-          
         </div>
       </div>
 

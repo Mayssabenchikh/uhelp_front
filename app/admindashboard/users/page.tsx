@@ -41,6 +41,14 @@ interface Department {
   name: string
 }
 
+type CountsRow = {
+  user_id: number
+  client_created: number
+  client_resolved: number
+  agent_assigned: number
+  agent_resolved: number
+}
+
 export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([])
   const [departments, setDepartments] = useState<Department[]>([])
@@ -114,13 +122,84 @@ export default function UsersPage() {
         },
       })
 
-      if (response.ok) {
-        const data = await response.json()
-        setUsers(data.data || data)
-      } else {
+      if (!response.ok) {
         const text = await response.text()
         console.error('fetch users failed', response.status, text)
         toast.error(`Failed to fetch users (${response.status})`)
+        setUsers([])
+        return
+      }
+
+      const data = await response.json()
+      const rawUsers: User[] = (data.data || data || []).map((u: User) => ({
+        ...u,
+        created_tickets: u.created_tickets ?? 0,
+        resolved_tickets: u.resolved_tickets ?? 0,
+      }))
+
+      // === Enrichir avec les compteurs provenant de /api/users/ticket-counts ===
+      if (rawUsers.length > 0) {
+        try {
+          const ids = rawUsers.map(u => u.id).join(',')
+          // resolved_status=closed pour compter les tickets résolus
+          const countsUrl = buildUrl(`/api/users/ticket-counts?ids=${ids}&resolved_status=closed`)
+
+          const countsRes = await fetch(countsUrl, {
+            headers: {
+              'Authorization': token ? `Bearer ${token}` : '',
+              'Accept': 'application/json'
+            }
+          })
+
+          if (countsRes.ok) {
+            const countsJson = await countsRes.json()
+            const rows: CountsRow[] = countsJson.data || []
+
+            const byId = new Map<number, CountsRow>()
+            rows.forEach(r => byId.set(r.user_id, r))
+
+            const merged = rawUsers.map(u => {
+              const c = byId.get(u.id)
+              if (!c) return u
+
+              // Règle d’agrégation :
+              // - Pour un client : created=client_created, resolved=client_resolved
+              // - Pour un agent : created=agent_assigned, resolved=agent_resolved
+              // - Pour un admin : affiche uniquement côté client (souvent 0)
+              let created = u.created_tickets ?? 0
+              let resolved = u.resolved_tickets ?? 0
+
+              if (u.role?.toLowerCase() === 'client') {
+                created = c.client_created ?? 0
+                resolved = c.client_resolved ?? 0
+              } else if (u.role?.toLowerCase() === 'agent') {
+                created = c.agent_assigned ?? 0
+                resolved = c.agent_resolved ?? 0
+              } else {
+                // admin ou autre : on peut choisir la vue "client"
+                created = c.client_created ?? 0
+                resolved = c.client_resolved ?? 0
+              }
+
+              return {
+                ...u,
+                created_tickets: created,
+                resolved_tickets: resolved
+              }
+            })
+
+            setUsers(merged)
+          } else {
+            // En cas d’échec du batch, on garde la liste des users sans compteurs
+            const text = await countsRes.text()
+            console.warn('fetch ticket-counts failed', countsRes.status, text)
+            setUsers(rawUsers)
+          }
+        } catch (e) {
+          console.error('Error fetching ticket counts', e)
+          setUsers(rawUsers)
+        }
+      } else {
         setUsers([])
       }
     } catch (error) {
@@ -287,7 +366,7 @@ export default function UsersPage() {
                 aria-label="Clear search"
                 title="Clear search"
               >
-                <XCircle className="w-4 h-4 text-gray-400" />
+                <XCircle className="w-4 h-4" />
               </button>
             )}
           </div>

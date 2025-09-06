@@ -78,7 +78,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       case '/admindashboard/users':
         return { title: `User Management`, subtitle: 'Manage user accounts, roles and permissions.', showSearch: false, searchPlaceholder: ''}
       case '/admindashboard/livechat':
-        return { title: `Live Chat`, subtitle: 'Monitor and join active customer conversations.', showSearch: true, searchPlaceholder: 'Search conversations...' }
+        return { title: `Live Chat`, subtitle: 'Monitor and join active customer conversations.',  showSearch: false, searchPlaceholder: ''}
+      case '/admindashboard/livechat':
       case '/admindashboard/reports':
         return { title: `Analytics & Reports`, subtitle: 'View detailed reports and performance metrics.', showSearch: true, searchPlaceholder: 'Search reports...' }
       default:
