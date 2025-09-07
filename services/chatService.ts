@@ -1,133 +1,302 @@
-// /services/chatService.ts
-export const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? '/api'
+// services/chatService.ts
+// Remplace ton fichier existant par celui-ci.
 
+export const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? 'http://127.0.0.1:8000/api'
+const AUTH_STRATEGY = (process.env.NEXT_PUBLIC_AUTH_STRATEGY ?? 'cookie').toLowerCase() // "cookie" or "token"
+const TOKEN_KEYS = ['token', 'auth_token', 'access_token']
+
+/** Lit le token depuis localStorage (sync-safe) */
+function readStoredTokenSync(): string | null {
+  if (typeof window === 'undefined') return null
+  for (const k of TOKEN_KEYS) {
+    try {
+      const t = localStorage.getItem(k)
+      if (t) return t
+    } catch (e) {
+      // ignore localStorage read errors
+      console.debug('[readStoredTokenSync] localStorage read error', e)
+    }
+  }
+  return null
+}
+
+/** Build auth headers depending on configured strategy. For token -> Authorization Bearer */
 async function getAuthHeaders(allowJson = false): Promise<Record<string, string>> {
   const headers: Record<string, string> = {}
-  try {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
-    if (token) headers['Authorization'] = `Bearer ${token}`
-  } catch (e) {
-    // ignore
-  }
   if (allowJson) headers['Accept'] = 'application/json'
+
+  try {
+    if (AUTH_STRATEGY === 'token') {
+      const token = readStoredTokenSync()
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`
+      } else {
+        console.debug('[getAuthHeaders] token missing in localStorage')
+      }
+    } else {
+      // cookie strategy: you may want to explicitly set X-Requested-With
+      headers['X-Requested-With'] = 'XMLHttpRequest'
+    }
+  } catch (e) {
+    console.debug('[getAuthHeaders] error reading token', e)
+  }
+
+  // IMPORTANT: do not set Content-Type here for FormData calls.
   return headers
 }
 
+/** ensureCsrf is required when using cookies (Laravel Sanctum) */
+async function ensureCsrf(): Promise<void> {
+  if (AUTH_STRATEGY !== 'cookie') return
+  try {
+    const origin = API_BASE.replace(/\/api\/?$/, '')
+    await fetch(`${origin}/sanctum/csrf-cookie`, {
+      method: 'GET',
+      credentials: 'include'
+    })
+  } catch (e) {
+    console.debug('ensureCsrf failed (ignored):', e)
+  }
+}
+
+async function handleResponse(res: Response) {
+  if (res.ok) {
+    const ct = res.headers.get('content-type') ?? ''
+    if (ct.includes('application/json')) return res.json()
+    // No content
+    if (res.status === 204) return null
+    return res.text()
+  } else {
+    let bodyText = '<unable to read response body>'
+    try { bodyText = await res.text() } catch {}
+    const err = new Error(`${res.status} ${res.statusText}: ${bodyText}`)
+    ;(err as any).status = res.status
+    ;(err as any).body = bodyText
+    throw err
+  }
+}
+
+/** small helper that centralizes fetch options (headers + credentials) */
+async function fetchWithAuth(url: string, opts: RequestInit = {}) {
+  // If opts.headers already contain Accept: application/json or method != GET, we pass allowJson = true
+  const allowJson = Boolean((opts.headers && (opts.headers as any)['Accept'] === 'application/json') || (opts.method && opts.method !== 'GET'))
+  const headers = await getAuthHeaders(allowJson)
+  // merge headers (don't overwrite existing)
+  opts.headers = { ...(opts.headers ?? {}), ...headers }
+  // include credentials for cookie strategy
+  if (AUTH_STRATEGY === 'cookie') (opts as any).credentials = 'include'
+  return fetch(url, opts)
+}
+
 export const chatService = {
+  /** login avec credentials: pour Bearer token */
+  async loginWithCredentials(credentials: { email: string; password: string }) {
+    // if using cookie strategy, ensure CSRF first
+    if (AUTH_STRATEGY === 'cookie') await ensureCsrf()
+
+    const res = await fetch(`${API_BASE}/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      credentials: AUTH_STRATEGY === 'cookie' ? 'include' : undefined,
+      body: JSON.stringify(credentials)
+    })
+    const data = await handleResponse(res)
+
+    // Store token if provided
+    if (data && (data.token || data.access_token || data.auth_token)) {
+      const token = data.token ?? data.access_token ?? data.auth_token
+      if (typeof window !== 'undefined') {
+        try { localStorage.setItem('token', token) } catch (e) { console.debug('Failed to set token in localStorage', e) }
+      }
+    }
+    return data
+  },
+
+  async logout() {
+    if (typeof window !== 'undefined') {
+      // For Bearer token: just remove token locally
+      if (AUTH_STRATEGY === 'token') {
+        try { localStorage.removeItem('token') } catch (e) { /* ignore */ }
+      }
+    }
+
+    try {
+      if (AUTH_STRATEGY === 'cookie') await ensureCsrf()
+      const res = await fetch(`${API_BASE}/logout`, {
+        method: 'POST',
+        headers: await getAuthHeaders(true),
+        credentials: AUTH_STRATEGY === 'cookie' ? 'include' : undefined
+      })
+      return handleResponse(res)
+    } catch {
+      return { ok: true }
+    }
+  },
+
   async fetchConversations(params: { status?: string; search?: string } = {}) {
     const qs = new URLSearchParams()
     if (params.status) qs.set('status', params.status)
     if (params.search) qs.set('search', params.search)
     const url = `${API_BASE}/conversations?${qs.toString()}`
-    const res = await fetch(url, { headers: await getAuthHeaders(true), credentials: 'include' })
-    return res.json()
+    const res = await fetchWithAuth(url, { headers: await getAuthHeaders(true) })
+    return handleResponse(res)
   },
 
   async fetchMessages(conversationId: string | number) {
     const url = `${API_BASE}/conversations/${conversationId}/messages`
-    const res = await fetch(url, { headers: await getAuthHeaders(true), credentials: 'include' })
-    return res.json()
+    const res = await fetchWithAuth(url, { headers: await getAuthHeaders(true) })
+    return handleResponse(res)
   },
 
   async fetchQuickResponses() {
     const url = `${API_BASE}/quick-responses`
-    const res = await fetch(url, { headers: await getAuthHeaders(true), credentials: 'include' })
-    return res.json()
-  },
-
-  async sendMessage(conversationId: string | number | null, body: string, files: File[] = []) {
-    const url = `${API_BASE}/chat/send`
-    const form = new FormData()
-    form.append('conversation_id', String(conversationId))
-    form.append('body', body ?? '')
-    files.forEach((f) => form.append('files[]', f))
-
-    const res = await fetch(url, {
-      method: 'POST',
-      body: form,
-      headers: await getAuthHeaders(false), // don't override Content-Type for multipart
-      credentials: 'include'
-    })
-    return res.json()
+    const res = await fetchWithAuth(url, { headers: await getAuthHeaders(true) })
+    return handleResponse(res)
   },
 
   /**
-   * generateQuickResponses
-   * Calls POST /api/gemini/suggest with { context, language }
-   * Returns whatever the backend responds with (string or object). Throws on non-2xx.
+   * Send message: uses FormData.
+   * Important: call ensureCsrf() first when using cookie auth.
    */
+  async sendMessage(conversationId: string | number | null, body: string, files: File[] = []) {
+    const url = `${API_BASE}/chat/send`
+
+    // Ensure CSRF (if cookie strategy)
+    if (AUTH_STRATEGY === 'cookie') await ensureCsrf()
+
+    const form = new FormData()
+    form.append('conversation_id', String(conversationId))
+
+    let messageBody = body && body.trim() ? body.trim() : ''
+    if (!messageBody && files && files.length > 0) messageBody = '[Fichier(s) joint(s)]'
+    form.append('body', messageBody || 'Message vide')
+
+    if (files && files.length > 0) {
+      for (const file of files) {
+        if (file.size > 50 * 1024 * 1024) {
+          throw new Error(`File "${file.name}" is too large. Maximum size is 50MB.`)
+        }
+        form.append('files[]', file)
+      }
+    }
+
+    if ((!body || !body.trim()) && (!files || files.length === 0)) {
+      throw new Error('Message must contain either text or attachments')
+    }
+
+    // Do NOT set Content-Type for FormData - browser will set boundary.
+    let headers = await getAuthHeaders(false)
+
+    // Safety: ensure we never set Content-Type when sending FormData
+    if (headers['Content-Type']) {
+      console.debug('[sendMessage] removing Content-Type header for FormData', headers['Content-Type'])
+      delete headers['Content-Type']
+    }
+
+    // Temporary debug: print headers + form entries (remove in production)
+    console.debug('[sendMessage] headers to be sent:', headers)
+    try {
+      for (const entry of (form as FormData).entries()) {
+        const key = entry[0]
+        const value = entry[1]
+        if (value instanceof File) {
+          console.debug('[sendMessage] form entry (file):', key, (value as File).name, (value as File).size)
+        } else {
+          console.debug('[sendMessage] form entry:', key, value)
+        }
+      }
+    } catch (e) {
+      console.debug('[sendMessage] form debug failed', e)
+    }
+
+    // Quick assert: warn if Authorization missing when using token strategy
+    if (AUTH_STRATEGY === 'token' && !headers['Authorization']) {
+      console.warn('[sendMessage] Authorization header is missing. Ensure token is in localStorage and AUTH_STRATEGY === "token".')
+    }
+
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        body: form,
+        headers,
+        credentials: AUTH_STRATEGY === 'cookie' ? 'include' : undefined
+      })
+      return handleResponse(res)
+    } catch (error: any) {
+      console.error('Send message failed:', error)
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        throw new Error('Network error: Could not connect to server')
+      }
+      throw error
+    }
+  },
+
   async generateQuickResponses(context: string, language = 'fr') {
     const url = `${API_BASE}/gemini/suggest`
     const payload = { context: context ?? '', language }
 
-    // AbortController timeout (20s)
+    if (AUTH_STRATEGY === 'cookie') await ensureCsrf()
+
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), 20000)
 
     try {
       const headers = await getAuthHeaders(true)
-      // We send JSON
       headers['Content-Type'] = 'application/json'
-
       const res = await fetch(url, {
         method: 'POST',
         headers,
         body: JSON.stringify(payload),
         signal: controller.signal,
-        credentials: 'include'
+        credentials: AUTH_STRATEGY === 'cookie' ? 'include' : undefined
       })
-
       clearTimeout(timeout)
-
-      // non-OK: try to read body for debugging
-      if (!res.ok) {
-        let bodyText: string
-        try {
-          bodyText = await res.text()
-        } catch (e) {
-          bodyText = '<unable to read response body>'
-        }
-        console.error(`generateQuickResponses: server returned ${res.status}`, bodyText)
-        throw new Error(`AI endpoint error ${res.status}: ${bodyText}`)
-      }
-
-      // Try parse JSON; if not JSON, return text
-      const contentType = res.headers.get('content-type') ?? ''
-      if (contentType.includes('application/json')) {
-        const data = await res.json()
-        // Backend might return { suggestion: '...' } or { suggestions: [...] } or a plain string
-        return data
-      } else {
-        const text = await res.text()
-        return text
-      }
+      return handleResponse(res)
     } catch (err: any) {
-      if (err.name === 'AbortError') {
-        console.error('generateQuickResponses: request timed out')
-        throw new Error('AI request timed out')
-      }
-      // Re-throw with helpful message after logging
-      console.error('generateQuickResponses ERROR:', err)
-      throw err
-    } finally {
       clearTimeout(timeout)
+      if (err.name === 'AbortError') throw new Error('AI request timed out')
+      throw err
     }
   },
-   async fetchConversationDetails(conversationId: string | number) {
-    const url = `${API_BASE}/conversations/${conversationId}/details`
-    const res = await fetch(url, {
-      headers: await getAuthHeaders(true),
-      credentials: 'include',
+
+  async me() {
+    const url = `${API_BASE}/me`
+    const res = await fetchWithAuth(url, {
+      headers: await getAuthHeaders(true)
     })
-    if (!res.ok) {
-      let bodyText: string
-      try {
-        bodyText = await res.text()
-      } catch {
-        bodyText = '<unable to read response body>'
-      }
-      throw new Error(`fetchConversationDetails failed ${res.status}: ${bodyText}`)
-    }
-    return res.json()
+    return handleResponse(res)
   },
+
+  async fetchConversationDetails(conversationId: string | number) {
+    const url = `${API_BASE}/conversations/${conversationId}/details`
+    const res = await fetchWithAuth(url, {
+      headers: await getAuthHeaders(true)
+    })
+    return handleResponse(res)
+  },
+
+  async joinConversation(conversationId: string | number) {
+    const url = `${API_BASE}/conversations/${conversationId}/join`
+    if (AUTH_STRATEGY === 'cookie') await ensureCsrf()
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: await getAuthHeaders(true),
+      credentials: AUTH_STRATEGY === 'cookie' ? 'include' : undefined
+    })
+    return handleResponse(res)
+  },
+
+  setToken(token: string) {
+    if (typeof window !== 'undefined') {
+      try { localStorage.setItem('token', token) } catch (e) { console.debug('Failed to set token in localStorage', e) }
+    }
+  },
+
+  clearToken() {
+    if (typeof window !== 'undefined') {
+      try { localStorage.removeItem('token') } catch (e) { /* ignore */ }
+    }
+  }
 }
+
+export default chatService

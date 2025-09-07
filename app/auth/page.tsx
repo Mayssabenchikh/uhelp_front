@@ -38,9 +38,20 @@ export default function AuthPage() {
     passwordConfirmation: '' 
   });
 
-  const { login, register, isLoading } = useAppContext();
+  const { login,user, register, isLoading } = useAppContext();
   const router = useRouter();
 
+const switchToSignUp = () => {
+  setIsSignUp(true);
+  setLoginErrors({ email: '', password: '' });
+  setRegisterErrors({ name: '', email: '', password: '', passwordConfirmation: '' });
+};
+
+const switchToSignIn = () => {
+  setIsSignUp(false);
+  setLoginErrors({ email: '', password: '' });
+  setRegisterErrors({ name: '', email: '', password: '', passwordConfirmation: '' });
+};
   // Validation email
   const validateEmail = (email: string): boolean => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -131,58 +142,80 @@ export default function AuthPage() {
     }
   };
 
-  const handleLogin = async (e: React.MouseEvent<HTMLButtonElement>) => {
+ const handleLogin = async (e: React.MouseEvent<HTMLButtonElement>) => {
   e.preventDefault();
-
   if (!validateLoginForm()) return;
 
-  try {
-    const result = await login(loginData.email, loginData.password);
-    if (result.success) {
-      toast.success(result.message ?? "Connexion réussie");
-      router.push("/admindashboard");
-    } else {
-      toast.error(result.message ?? "Email ou mot de passe incorrect");
-      setLoginData((prev) => ({ ...prev, password: "" }));
-    }
-  } catch (err) {
-    toast.error("Erreur lors de la connexion");
-    setLoginData((prev) => ({ ...prev, password: "" }));
+  const result = await login(loginData.email, loginData.password);
+
+  if (!result.success || !result.user) {
+    toast.error(result.message ?? 'Email ou mot de passe incorrect');
+    setLoginData(prev => ({ ...prev, password: '' }));
+    return;
+  }
+
+  toast.success(result.message ?? 'Connexion réussie');
+
+  // Redirection selon le rôle
+  switch (result.user.role) {
+    case 'super_admin':
+      router.push('/superadmindashboard');
+      break;
+    case 'admin':
+      router.push('/admindashboard');
+      break;
+    case 'agent':
+      router.push('/agentdashboard');
+      break;
+    case 'client':
+      router.push('/clientdashboard');
+      break;
+    default:
+      router.push('/');
   }
 };
 
 
 
-  const handleRegister = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!validateRegisterForm()) {
-      return;
-    }
-    
-    await register(
-      registerData.name,
-      registerData.email,
-      registerData.password
-    );
-    setRegisterData({ name: '', email: '', password: '', passwordConfirmation: '' });
-    setRegisterErrors({ name: '', email: '', password: '', passwordConfirmation: '' });
-    setIsSignUp(false);
-  };
 
-  const switchToSignUp = () => {
-    setIsSignUp(true);
-    // Réinitialiser les erreurs
-    setLoginErrors({ email: '', password: '' });
-    setRegisterErrors({ name: '', email: '', password: '', passwordConfirmation: '' });
-  };
-  
-  const switchToSignIn = () => {
-    setIsSignUp(false);
-    // Réinitialiser les erreurs
-    setLoginErrors({ email: '', password: '' });
-    setRegisterErrors({ name: '', email: '', password: '', passwordConfirmation: '' });
-  };
+
+  const handleRegister = async (e: React.FormEvent) => {
+  e.preventDefault();
+  if (!validateRegisterForm()) return;
+
+  const result = await register(registerData.name, registerData.email, registerData.password);
+
+  if (!result.success || !result.user) {
+    toast.error(result.message ?? 'Erreur lors de la création du compte');
+    return;
+  }
+
+  toast.success(result.message ?? 'Compte créé avec succès');
+
+  // Redirection selon le rôle
+  switch (result.user.role) {
+    case 'super_admin':
+      router.push('/superadmindashboard');
+      break;
+    case 'admin':
+      router.push('/admindashboard');
+      break;
+    case 'agent':
+      router.push('/agentdashboard');
+      break;
+    case 'client':
+      router.push('/clientdashboard');
+      break;
+    default:
+      router.push('/');
+  }
+
+  // Reset form
+  setRegisterData({ name: '', email: '', password: '', passwordConfirmation: '' });
+  setRegisterErrors({ name: '', email: '', password: '', passwordConfirmation: '' });
+  setIsSignUp(false);
+};
+
 
   return (
     <div className="min-h-screen bg-white flex items-center justify-center py-16">
