@@ -357,7 +357,7 @@ export default function DashboardPage() {
             />
 
             <button
-              onClick={() => router.push('/admindashboard/globaltickets')}
+              onClick={() => router.push('/superadmindashboard/globaltickets')}
               className="px-4 py-2 bg-cyan-500 text-white rounded-lg hover:bg-cyan-600 transition-colors text-sm"
             >
               View All

@@ -27,7 +27,7 @@ interface UpdateUserData {
   name?: string
   email?: string
   password?: string
-  role?: 'agent' | 'client'
+  role?: 'agent' | 'client' | 'admin'   // <-- ajouté 'admin'
   phone_number?: string
   location?: string
   profile_photo?: File | null
@@ -38,19 +38,17 @@ interface User {
   id: number
   name: string
   email: string
-  role: 'agent' | 'client'
+  role: 'agent' | 'client' | 'admin'    // <-- ajouté 'admin'
   phone_number?: string
   location?: string
   profile_photo?: string
   profile_photo_url?: string
   department_id?: number | null
-  department?: {
-    id: number
-    name: string
-  } | null
+  department?: { id: number; name: string } | null
   created_at: string
   email_verified_at?: string | null
 }
+
 
 interface Department {
   id: number
@@ -188,7 +186,7 @@ export default function EditUserPage() {
       // invalidate queries so UI refreshes
       queryClient.invalidateQueries({ queryKey: ['user', userId] })
       queryClient.invalidateQueries({ queryKey: ['users'] })
-      router.push('/admindashboard/users')
+      router.push('/superadmindashboard/users')
     },
     onError: (error: any) => {
       // If the backend returned validation errors, attach them to the form
@@ -289,21 +287,24 @@ export default function EditUserPage() {
     updateMutation.mutate({ id: userId, data: submitData })
   }
 
-  const getRoleColor = (role: string) => {
-    switch (role) {
-      case 'agent': return 'text-blue-600 bg-blue-50 border-blue-200'
-      case 'client': return 'text-green-600 bg-green-50 border-green-200'
-      default: return 'text-gray-600 bg-gray-50 border-gray-200'
-    }
+ const getRoleColor = (role: string) => {
+  switch (role) {
+    case 'agent': return 'text-blue-600 bg-blue-50 border-blue-200'
+    case 'client': return 'text-green-600 bg-green-50 border-green-200'
+    case 'admin': return 'text-red-600 bg-red-50 border-red-200' // <-- admin
+    default: return 'text-gray-600 bg-gray-50 border-gray-200'
   }
+}
 
-  const getRoleIcon = (role: string) => {
-    switch (role) {
-      case 'agent': return <UserIcon className="w-4 h-4" />
-      case 'client': return <CheckCircle className="w-4 h-4" />
-      default: return <UserIcon className="w-4 h-4" />
-    }
+const getRoleIcon = (role: string) => {
+  switch (role) {
+    case 'agent': return <UserIcon className="w-4 h-4" />
+    case 'client': return <CheckCircle className="w-4 h-4" />
+    case 'admin': return <Lock className="w-4 h-4" />   // <-- admin
+    default: return <UserIcon className="w-4 h-4" />
   }
+}
+
 
   const getStatusBadge = (user?: User) => {
     if (!user) return null
@@ -332,7 +333,7 @@ export default function EditUserPage() {
           </div>
           <p className="text-red-700 mt-2">{userError.message}</p>
           <button
-            onClick={() => router.push('/admindashboard/users')}
+            onClick={() => router.push('/superadmindashboard/users')}
             className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
           >
             Back to Users
@@ -377,7 +378,7 @@ export default function EditUserPage() {
         <div className="flex items-center gap-3">
           <button
             type="button"
-            onClick={() => router.push('/admindashboard/users')}
+            onClick={() => router.push('/superadmindashboard/users')}
             className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
           >
             Cancel
@@ -650,7 +651,7 @@ export default function EditUserPage() {
             <div className="bg-white rounded-lg shadow-sm border p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">User Role</h3>
               <div className="space-y-2">
-                {(['agent', 'client'] as const).map((role) => (
+                {(['agent', 'client','admin'] as const).map((role) => (
                   <label key={role} className="flex items-center cursor-pointer">
                     <input
                       type="radio"

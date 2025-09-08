@@ -604,7 +604,7 @@ export default function GlobalTicketsPage() {
         ) : (visibleAndSearchedTickets.length === 0) ? (
           <div className="p-8 text-center text-gray-500">
             <p>No tickets found</p>
-            <button onClick={() => router.push('/admindashboard/tickets/new')} className="mt-2 text-blue-600 hover:text-blue-800">Create your first ticket</button>
+            <button onClick={() => router.push('/superadmindashboard/tickets/new')} className="mt-2 text-blue-600 hover:text-blue-800">Create your first ticket</button>
           </div>
         ) : (
           <>
@@ -682,8 +682,8 @@ export default function GlobalTicketsPage() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
-                          <button onClick={() => router.push(`/admindashboard/tickets/${ticket.id}`)} className="p-1 text-gray-400 hover:text-blue-600" title="Show ticket"><Eye className="w-4 h-4" /></button>
-                          <button onClick={() => router.push(`/admindashboard/tickets/${ticket.id}/edit`)} className="p-1 text-gray-400 hover:text-blue-600" title="Edit ticket"><Edit3 className="w-4 h-4" /></button>
+                          <button onClick={() => router.push(`/superadmindashboard/tickets/${ticket.id}`)} className="p-1 text-gray-400 hover:text-blue-600" title="Show ticket"><Eye className="w-4 h-4" /></button>
+                          <button onClick={() => router.push(`/superadmindashboard/tickets/${ticket.id}/edit`)} className="p-1 text-gray-400 hover:text-blue-600" title="Edit ticket"><Edit3 className="w-4 h-4" /></button>
                           <button onClick={() => deleteMutation.mutate(ticket.id)} className="p-1 text-gray-400 hover:text-red-600" title="Delete ticket" disabled={deleteMutation.status === 'pending'}><Trash2 className="w-4 h-4" /></button>
                         </div>
                       </td>

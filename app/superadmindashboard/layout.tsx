@@ -45,13 +45,13 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   }
 
   const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, href: '/admindashboard', exact: true },
-    { id: 'profile', label: 'Profile', icon: User, href: '/admindashboard/profile' },
-    { id: 'global-tickets', label: 'Global Tickets', icon: Ticket, href: '/admindashboard/globaltickets' },
-    { id: 'trashed-tickets', label: 'Trashed Tickets', icon: Trash2, href: '/admindashboard/trashedtickets' },
-    { id: 'users', label: 'Users', icon: Users, href: '/admindashboard/users' },
-    { id: 'live-chat', label: 'Live Chat', icon: MessageCircle, href: '/admindashboard/livechat' },
-    { id: 'reports', label: 'Reports', icon: BarChart3, href: '/admindashboard/reports' },
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, href: '/superadmindashboard', exact: true },
+    { id: 'profile', label: 'Profile', icon: User, href: '/superadmindashboard/profile' },
+    { id: 'global-tickets', label: 'Global Tickets', icon: Ticket, href: '/superadmindashboard/globaltickets' },
+    { id: 'trashed-tickets', label: 'Trashed Tickets', icon: Trash2, href: '/superadmindashboard/trashedtickets' },
+    { id: 'users', label: 'Users', icon: Users, href: '/superadmindashboard/users' },
+    { id: 'live-chat', label: 'Live Chat', icon: MessageCircle, href: '/superadmindashboard/livechat' },
+    { id: 'reports', label: 'Reports', icon: BarChart3, href: '/superadmindashboard/reports' },
   ]
 
   const isActiveRoute = (href: string, exact = false) => {
@@ -60,27 +60,27 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     return pathname.startsWith(href)
   }
 
-  const isUsersPage = pathname === '/admindashboard/users'
-  const isGlobalTickets = pathname === '/admindashboard/globaltickets'
-  const isTrashedTickets = pathname === '/admindashboard/trashedtickets'
+  const isUsersPage = pathname === '/superadmindashboard/users'
+  const isGlobalTickets = pathname === '/superadmindashboard/globaltickets'
+  const isTrashedTickets = pathname === '/superadmindashboard/trashedtickets'
 
   const getHeaderContent = () => {
     const userName = isMounted && user?.name ? user.name : 'Admin'
     switch (pathname) {
-      case '/admindashboard':
+      case '/superadmindashboard':
         return { title: `Welcome back, ${userName}!`, subtitle: "Here's what's happening with your helpdesk today.", showSearch: false, searchPlaceholder: 'Search tickets, users...' }
-      case '/admindashboard/profile':
+      case '/superadmindashboard/profile':
         return { title: `Profile Settings`, subtitle: 'Manage your personal information and account settings.', showSearch: false, searchPlaceholder: '' }
-      case '/admindashboard/globaltickets':
+      case '/superadmindashboard/globaltickets':
         return { title: `All Tickets`, subtitle: 'View and manage all support tickets in the system.', showSearch: true, searchPlaceholder: 'Search tickets by ID, customer, subject...' }
-      case '/admindashboard/trashedtickets':
+      case '/superadmindashboard/trashedtickets':
         return { title: `Trashed Tickets`, subtitle: 'Manage deleted tickets - restore or permanently remove', showSearch: false, searchPlaceholder: '' }
-      case '/admindashboard/users':
+      case '/superadmindashboard/users':
         return { title: `User Management`, subtitle: 'Manage user accounts, roles and permissions.', showSearch: false, searchPlaceholder: ''}
-      case '/admindashboard/livechat':
+      case '/superadmindashboard/livechat':
         return { title: `Live Chat`, subtitle: 'Monitor and join active customer conversations.',  showSearch: false, searchPlaceholder: ''}
-      case '/admindashboard/livechat':
-      case '/admindashboard/reports':
+      case '/superadmindashboard/livechat':
+      case '/superadmindashboard/reports':
         return { title: `Analytics & Reports`, subtitle: 'View detailed reports and performance metrics.',  showSearch: false, searchPlaceholder: ''}
       default:
         return { title: `Welcome back, ${userName}!`, subtitle: "Here's what's happening with your helpdesk today.", showSearch: true, searchPlaceholder: 'Search...' }
@@ -98,7 +98,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
 const handleExportClick = async () => {
   if (!isUsersPage) {
-    router.push('/admindashboard/users');
+    router.push('/superadmindashboard/users');
     return;
   }
 
@@ -159,7 +159,7 @@ const handleExportClick = async () => {
       {/* Sidebar */}
       <div className="w-64 bg-gradient-to-b from-cyan-400 to-cyan-500 text-white">
         <div className="p-6 border-b border-cyan-300">
-          <Link href="/admindashboard" className="flex items-center gap-2">
+          <Link href="/superadmindashboard" className="flex items-center gap-2">
             <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center">
               <MessageCircle className="w-5 h-5 text-cyan-500" />
             </div>
@@ -236,7 +236,7 @@ const handleExportClick = async () => {
                     Export
                   </button>
                   <button
-                    onClick={() => router.push('/admindashboard/users/new')}
+                    onClick={() => router.push('/superadmindashboard/users/new')}
                     className="flex items-center gap-2 px-4 py-2 bg-cyan-500 text-white rounded-lg hover:bg-cyan-600"
                   >
                     <Plus className="w-4 h-4" />
@@ -245,7 +245,7 @@ const handleExportClick = async () => {
                 </div>
               </div>
             </div>
-            ) : pathname === '/admindashboard/livechat' ? (
+            ) : pathname === '/superadmindashboard/livechat' ? (
   <div className="flex items-center justify-between">
     <div>
       <h1 className="text-2xl font-bold text-gray-900">Live Chat</h1>
@@ -254,7 +254,7 @@ const handleExportClick = async () => {
     <div>
       {/* Create Conversation Button */}
       <button
-        onClick={() => window.location.href = '/admindashboard/livechat/create'}
+        onClick={() => window.location.href = '/superadmindashboard/livechat/create'}
         className="flex items-center justify-center gap-2 px-4 py-2 bg-cyan-500 text-white rounded-lg hover:bg-cyan-600 transition-colors text-sm font-medium"
       >
         <Plus className="w-4 h-4" />
@@ -274,7 +274,7 @@ const handleExportClick = async () => {
                   <Download className="w-4 h-4" />
                   Export
                 </button>
-                <button onClick={() => router.push('/admindashboard/tickets/new')} className="flex items-center gap-2 px-4 py-2 bg-cyan-500 text-white rounded-lg hover:bg-cyan-600">
+                <button onClick={() => router.push('/superadmindashboard/tickets/new')} className="flex items-center gap-2 px-4 py-2 bg-cyan-500 text-white rounded-lg hover:bg-cyan-600">
                   <Plus className="w-4 h-4" />
                   New Ticket
                 </button>

@@ -54,7 +54,6 @@ export default function UsersPage() {
   const [departments, setDepartments] = useState<Department[]>([])
   const [loading, setLoading] = useState(true)
 
-  // Debounced search
   const [searchInput, setSearchInput] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
 
@@ -69,13 +68,12 @@ export default function UsersPage() {
   const [showFilters, setShowFilters] = useState(false)
 
   const router = useRouter()
-  const { token } = useAppContext()
-
+  const { token, user: currentUser } = useAppContext()
   const menuRef = useRef<HTMLDivElement | null>(null)
 
   const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000').replace(/\/$/, '')
 
-  // debounce search input -> 500ms
+  // debounce pour la recherche
   useEffect(() => {
     const t = setTimeout(() => {
       setSearchTerm(searchInput.trim())
@@ -83,11 +81,20 @@ export default function UsersPage() {
     return () => clearTimeout(t)
   }, [searchInput])
 
+  // NOTE: on ajoute currentUser?.id dans les dépendances pour relancer la fetch
   useEffect(() => {
     fetchUsers()
     fetchDepartments()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchTerm, selectedRole, selectedStatus, selectedDepartment, filterHasPhone, filterHasPhoto])
+  }, [
+    searchTerm,
+    selectedRole,
+    selectedStatus,
+    selectedDepartment,
+    filterHasPhone,
+    filterHasPhoto,
+    currentUser?.id // <-- important : relancer quand l'utilisateur connecté arrive / change
+  ])
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -137,11 +144,19 @@ export default function UsersPage() {
         resolved_tickets: u.resolved_tickets ?? 0,
       }))
 
-      // === Enrichir avec les compteurs provenant de /api/users/ticket-counts ===
-      if (rawUsers.length > 0) {
+      // Détecte si l'utilisateur courant est super_admin (insensible à la casse)
+      const currentIsSuperAdmin = String(currentUser?.role || '').toLowerCase() === 'super_admin'
+
+      // ✅ Exclure l'utilisateur connecté ET (si l'utilisateur courant n'est pas super_admin) masquer les super_admin
+      const filteredUsers = rawUsers.filter(u =>
+        String(u.id) !== String(currentUser?.id) &&
+        (currentIsSuperAdmin || String(u.role || '').toLowerCase() !== 'super_admin')
+      )
+
+      // Ajout des compteurs de tickets
+      if (filteredUsers.length > 0) {
         try {
-          const ids = rawUsers.map(u => u.id).join(',')
-          // resolved_status=closed pour compter les tickets résolus
+          const ids = filteredUsers.map(u => u.id).join(',')
           const countsUrl = buildUrl(`/api/users/ticket-counts?ids=${ids}&resolved_status=closed`)
 
           const countsRes = await fetch(countsUrl, {
@@ -158,14 +173,10 @@ export default function UsersPage() {
             const byId = new Map<number, CountsRow>()
             rows.forEach(r => byId.set(r.user_id, r))
 
-            const merged = rawUsers.map(u => {
+            const merged = filteredUsers.map(u => {
               const c = byId.get(u.id)
               if (!c) return u
 
-              // Règle d’agrégation :
-              // - Pour un client : created=client_created, resolved=client_resolved
-              // - Pour un agent : created=agent_assigned, resolved=agent_resolved
-              // - Pour un admin : affiche uniquement côté client (souvent 0)
               let created = u.created_tickets ?? 0
               let resolved = u.resolved_tickets ?? 0
 
@@ -176,7 +187,6 @@ export default function UsersPage() {
                 created = c.agent_assigned ?? 0
                 resolved = c.agent_resolved ?? 0
               } else {
-                // admin ou autre : on peut choisir la vue "client"
                 created = c.client_created ?? 0
                 resolved = c.client_resolved ?? 0
               }
@@ -190,14 +200,11 @@ export default function UsersPage() {
 
             setUsers(merged)
           } else {
-            // En cas d’échec du batch, on garde la liste des users sans compteurs
-            const text = await countsRes.text()
-            console.warn('fetch ticket-counts failed', countsRes.status, text)
-            setUsers(rawUsers)
+            setUsers(filteredUsers)
           }
         } catch (e) {
           console.error('Error fetching ticket counts', e)
-          setUsers(rawUsers)
+          setUsers(filteredUsers)
         }
       } else {
         setUsers([])
@@ -251,8 +258,6 @@ export default function UsersPage() {
         setSelectedUsers(prev => prev.filter(id => id !== userId))
         toast.success('User deleted successfully')
       } else {
-        const text = await response.text()
-        console.error('delete failed', response.status, text)
         toast.error('Failed to delete user')
       }
     } catch (error) {
@@ -264,6 +269,7 @@ export default function UsersPage() {
   const deleteSelected = async () => {
     if (selectedUsers.length === 0) return
     if (!window.confirm(`Delete ${selectedUsers.length} selected user(s)?`)) return
+
     try {
       const responses = await Promise.all(
         selectedUsers.map(id =>
@@ -276,6 +282,7 @@ export default function UsersPage() {
           })
         )
       )
+
       const failed = responses.filter(r => !r.ok).length
       if (failed === 0) {
         setUsers(prev => prev.filter(u => !selectedUsers.includes(u.id)))
@@ -295,7 +302,7 @@ export default function UsersPage() {
 
   const clearFilters = () => {
     setSearchInput('')
-    setSearchTerm('') // déclenche immédiatement un refetch
+    setSearchTerm('')
     setSelectedRole('all')
     setSelectedStatus('all')
     setSelectedDepartment('all')
@@ -323,10 +330,14 @@ export default function UsersPage() {
 
   const getRoleColor = (role: string) => {
     switch (role.toLowerCase()) {
-      case 'admin': return 'bg-purple-100 text-purple-800'
-      case 'agent': return 'bg-blue-100 text-blue-800'
-      case 'client': return 'bg-gray-100 text-gray-800'
-      default: return 'bg-gray-100 text-gray-800'
+      case 'admin':
+        return 'bg-purple-100 text-purple-800'
+      case 'agent':
+        return 'bg-blue-100 text-blue-800'
+      case 'client':
+        return 'bg-gray-100 text-gray-800'
+      default:
+        return 'bg-gray-100 text-gray-800'
     }
   }
 
@@ -336,6 +347,9 @@ export default function UsersPage() {
       : 'bg-gray-100 text-gray-800'
   }
 
+  // Utilisé dans le render pour savoir s'il faut afficher l'option Super Admin
+  const currentIsSuperAdmin = String(currentUser?.role || '').toLowerCase() === 'super_admin'
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -343,7 +357,6 @@ export default function UsersPage() {
       </div>
     )
   }
-
   return (
     <div className="space-y-6">
       {/* Filters */}
@@ -371,16 +384,17 @@ export default function UsersPage() {
             )}
           </div>
 
-          <select
-            value={selectedRole}
-            onChange={(e) => setSelectedRole(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-cyan-500 text-sm bg-white min-w-[120px]"
-          >
-            <option value="all">All Roles</option>
-            <option value="admin">Admin</option>
-            <option value="agent">Agent</option>
-            <option value="client">Client</option>
-          </select>
+        <select
+  value={selectedRole}
+  onChange={(e) => setSelectedRole(e.target.value)}
+  className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-cyan-500 text-sm bg-white min-w-[120px]"
+>
+  <option value="all">All Roles</option>
+  <option value="admin">Admin</option>
+  <option value="agent">Agent</option>
+  <option value="client">Client</option>
+</select>
+
 
           <select
             value={selectedStatus}
@@ -580,14 +594,14 @@ export default function UsersPage() {
                       {activeMenuUserId === user.id && (
                         <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-md shadow-lg border border-gray-200 z-50">
                           <button
-                            onClick={() => router.push(`/admindashboard/users/${user.id}`)}
+                            onClick={() => router.push(`/superadmindashboard/users/${user.id}`)}
                             className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 text-left"
                           >
                             <Eye className="w-4 h-4" />
                             View Details
                           </button>
                           <button
-                            onClick={() => router.push(`/admindashboard/users/${user.id}/edit`)}
+                            onClick={() => router.push(`/superadmindashboard/users/${user.id}/edit`)}
                             className="flex items-center gap-2 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 text-left"
                           >
                             <Edit className="w-4 h-4" />

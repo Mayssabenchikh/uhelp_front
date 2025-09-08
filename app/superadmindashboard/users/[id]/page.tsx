@@ -202,7 +202,7 @@ export default function UserDetailPage() {
               Try Again
             </button>
             <button
-              onClick={() => router.push('/admindashboard/users')}
+              onClick={() => router.push('/superadmindashboard/users')}
               className="px-4 py-2 border border-red-300 text-red-700 rounded-lg hover:bg-red-50 transition-colors"
             >
               Back to Users
@@ -264,7 +264,7 @@ export default function UserDetailPage() {
           <h2 className="text-lg font-semibold text-gray-900 mb-2">User Not Found</h2>
           <p className="text-gray-600 mb-4">The user you're looking for doesn't exist or has been deleted.</p>
           <button
-            onClick={() => router.push('/admindashboard/users')}
+            onClick={() => router.push('/superadmindashboard/users')}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             Back to Users
@@ -309,7 +309,7 @@ export default function UserDetailPage() {
 
         <div className="flex items-center gap-3">
           <button
-            onClick={() => router.push(`/admindashboard/users/${userId}/edit`)}
+            onClick={() => router.push(`/superadmindashboard/users/${userId}/edit`)}
             className="flex items-center gap-2 px-4 py-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 transition-colors"
           >
             <Edit className="w-4 h-4" />
@@ -389,7 +389,7 @@ export default function UserDetailPage() {
                     <div className="flex items-center gap-2 mb-2">
                       <h3 className="text-lg font-medium text-gray-900">{user.department.name}</h3>
                       <button
-                        onClick={() => router.push(`/admindashboard/departments/${user.department?.id}`)}
+                        onClick={() => router.push(`/superadmindashboard/departments/${user.department?.id}`)}
                         className="text-blue-600 hover:text-blue-800"
                       >
                         <ExternalLink className="w-4 h-4" />
@@ -404,7 +404,7 @@ export default function UserDetailPage() {
                     <Building2 className="w-8 h-8 text-gray-300 mx-auto mb-3" />
                     <p className="text-gray-500">No department assigned</p>
                     <button
-                      onClick={() => router.push(`/admindashboard/users/${userId}/edit`)}
+                      onClick={() => router.push(`/superadmindashboard/users/${userId}/edit`)}
                       className="mt-2 text-blue-600 hover:text-blue-800 text-sm font-medium"
                     >
                       Assign Department

@@ -184,7 +184,7 @@ export default function EditTicketPage() {
     onSuccess: (data) => {
       toast.success('Ticket updated successfully!')
       setHasChanges(false)
-      router.push(`/admindashboard/tickets/${ticketId}`)
+      router.push(`/superadmindashboard/tickets/${ticketId}`)
     },
     onError: (error: any) => {
       toast.error(error.message || 'Failed to update ticket')
@@ -264,7 +264,7 @@ export default function EditTicketPage() {
           <p className="text-gray-900 font-medium">Ticket not found</p>
           <p className="text-gray-600 mb-4">The ticket you're looking for doesn't exist or you don't have access to it.</p>
           <button
-            onClick={() => router.push('/admindashboard/globaltickets')}
+            onClick={() => router.push('/superadmindashboard/globaltickets')}
             className="px-4 py-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 transition-colors"
           >
             Back to Tickets
@@ -301,7 +301,7 @@ export default function EditTicketPage() {
         <div className="flex items-center gap-3">
           <button
             type="button"
-            onClick={() => router.push(`/admindashboard/tickets/${ticketId}`)}
+            onClick={() => router.push(`/superadmindashboard/tickets/${ticketId}`)}
             className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
           >
             Cancel

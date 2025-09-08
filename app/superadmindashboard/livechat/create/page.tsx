@@ -1,4 +1,3 @@
-// app/admindashboard/livechat/create/page.tsx
 'use client'
 
 import React, { useState, useEffect } from 'react'
@@ -143,9 +142,9 @@ const filteredUsers = allUsers.filter(u => String(u.id) !== String(currentUserId
       const conversation = await response.json()
       const conversationId = conversation.id || conversation.conversation?.id
       if (conversationId) {
-        window.location.href = `/admindashboard/livechat?conversation=${conversationId}`
+        window.location.href = `/superadmindashboard/livechat?conversation=${conversationId}`
       } else {
-        window.location.href = '/admindashboard/livechat'
+        window.location.href = '/superadmindashboard/livechat'
       }
     } catch (error) {
       console.error('Create conversation error:', error)
@@ -160,7 +159,7 @@ const filteredUsers = allUsers.filter(u => String(u.id) !== String(currentUserId
       setStep('list')
       setSelectedUser(null)
     } else {
-      window.location.href = '/admindashboard/livechat'
+      window.location.href = '/superadmindashboard/livechat'
     }
   }
 

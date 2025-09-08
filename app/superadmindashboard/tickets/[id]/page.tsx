@@ -505,7 +505,7 @@ export default function TicketDetailPage(_: TicketDetailPageProps) {
             <h2 className="text-xl font-bold text-slate-900 mb-2">Loading Error</h2>
             <p className="text-slate-600 mb-6">{error.message}</p>
             <button
-              onClick={() => router.push('/admindashboard/globaltickets')}
+              onClick={() => router.push('/superadmindashboard/globaltickets')}
               className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-200 font-medium shadow-lg hover:shadow-xl"
             >
               Back to Tickets
@@ -527,7 +527,7 @@ export default function TicketDetailPage(_: TicketDetailPageProps) {
             <h2 className="text-xl font-bold text-slate-900 mb-2">Ticket Not Found</h2>
             <p className="text-slate-600 mb-6">The ticket you're looking for doesn't exist.</p>
             <button
-              onClick={() => router.push('/admindashboard/globaltickets')}
+              onClick={() => router.push('/superadmindashboard/globaltickets')}
               className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-200 font-medium shadow-lg hover:shadow-xl"
             >
               Back to Tickets
@@ -552,7 +552,7 @@ export default function TicketDetailPage(_: TicketDetailPageProps) {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <button
-                  onClick={() => router.push('/admindashboard/globaltickets')}
+                  onClick={() => router.push('/superadmindashboard/globaltickets')}
                   className="flex items-center gap-2 px-4 py-2 text-blue-100 hover:text-white hover:bg-blue-500/20 rounded-lg transition-all duration-200"
                 >
                   <ArrowLeft className="w-5 h-5" />
@@ -583,7 +583,7 @@ export default function TicketDetailPage(_: TicketDetailPageProps) {
                   </span>
                 </button>
                 <button
-                  onClick={() => router.push(`/admindashboard/tickets/${ticket.id}/edit`)}
+                  onClick={() => router.push(`/superadmindashboard/tickets/${ticket.id}/edit`)}
                   className="flex items-center gap-2 px-4 py-2 bg-white/10 text-white rounded-lg hover:bg-white/20 transition-all duration-200 backdrop-blur-sm"
                 >
                   <Edit className="w-4 h-4" />
