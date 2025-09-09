@@ -97,6 +97,16 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
 
   const getHeaderContent = () => {
     const userName = isMounted && user?.name ? user.name : 'John'
+    
+    // Check for ticket detail page
+    if (pathname?.match(/^\/clientdashboard\/tickets\/[^/]+$/)) {
+      const ticketId = pathname.split('/').pop()
+      return { 
+        title: `Ticket Responses`, 
+        subtitle: `All responses for ticket` 
+      }
+    }
+    
     switch (pathname) {
       case '/clientdashboard':
         return { 
@@ -243,7 +253,7 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
 
         {/* Main Content Area */}
         <main className="flex-1 p-8 overflow-y-auto">
-          <div className="max-w-7xl">
+          <div>
             {children}
           </div>
         </main>

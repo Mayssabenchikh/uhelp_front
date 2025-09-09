@@ -3,27 +3,19 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { 
-  FileText, 
-  Clock, 
   AlertTriangle, 
   CheckCircle,
   AlertCircle,
   ArrowRight
 } from 'lucide-react'
 import { useAppContext } from '@/context/Context'
-
-interface TicketStats {
-  total: number
-  open: number
-  pending: number
-  resolved: number
-}
+import { ticketService, userService } from '@/services/api'
 
 interface RecentTicket {
   id: string
   title: string
-  status: 'open' | 'pending' | 'closed'
-  priority: 'high' | 'medium' | 'low'
+  status: 'open' | 'pending' | 'closed' | string
+  priority: 'high' | 'medium' | 'low' | string
   created_at: string
 }
 
@@ -39,105 +31,87 @@ interface Alert {
 }
 
 export default function ClientDashboardPage() {
-  const [stats, setStats] = useState<TicketStats>({
-    total: 15,
-    open: 3,
-    pending: 2,
-    resolved: 10
-  })
+  const [recentTickets, setRecentTickets] = useState<RecentTicket[]>([])
 
-  const [recentTickets, setRecentTickets] = useState<RecentTicket[]>([
-    {
-      id: 'T015',
-      title: 'Application login issue',
-      status: 'open',
-      priority: 'high',
-      created_at: 'Jan 15, 11:30 AM'
-    },
-    {
-      id: 'T016',
-      title: 'Billing question',
-      status: 'pending',
-      priority: 'medium',
-      created_at: 'Jan 14, 03:20 PM'
-    },
-    {
-      id: 'T017',
-      title: 'Feature request',
-      status: 'closed',
-      priority: 'low',
-      created_at: 'Jan 13, 10:15 AM'
-    }
-  ])
-
-  const [alerts, setAlerts] = useState<Alert[]>([
-    {
-      id: '1',
-      type: 'warning',
-      title: 'Pending Invoice',
-      message: 'Your invoice #INV-2024-001 has been pending payment for 5 days.',
-      action: {
-        text: 'Pay now',
-        url: '/clientdashboard/billing'
-      }
-    },
-    {
-      id: '2',
-      type: 'info',
-      title: 'New Feature',
-      message: 'Discover our new real-time chat system!',
-      action: {
-        text: 'Try it now',
-        url: '/clientdashboard/live-chat'
-      }
-    }
-  ])
+  const [alerts] = useState<Alert[]>([])
 
   const { user } = useAppContext()
 
-  // Simulated data loading - replace with actual API calls
   useEffect(() => {
-    // Fetch dashboard data from Laravel API
-    const fetchDashboardData = async () => {
+    const fetchTickets = async () => {
       try {
-        // Example API calls
-        // const statsResponse = await fetch('/api/dashboard/stats')
-        // const ticketsResponse = await fetch('/api/dashboard/recent-tickets')
-        // const alertsResponse = await fetch('/api/dashboard/alerts')
-        // setStats(await statsResponse.json())
-        // setRecentTickets(await ticketsResponse.json())
-        // setAlerts(await alertsResponse.json())
+        const res = await ticketService.getUserTickets({ per_page: 200 })
+        const raw = (res.data?.data ?? res.data ?? [])
+        const items = Array.isArray(raw?.data) ? raw.data : (Array.isArray(raw) ? raw : [])
+        const mapped = items.map((t: any) => ({
+          id: t.ticket_id || `TK-${t.id}`,
+          title: t.subject || t.titre || 'Ticket',
+          status: t.status || t.statut || 'open',
+          priority: t.priority || t.priorite || 'low',
+          created_at: t.created_at,
+        }))
+        setRecentTickets(mapped)
+
+        // compute counts
+        const total = items.length
+        const open = items.filter((t: any) => (t.status ?? t.statut) === 'open').length
+        const pending = items.filter((t: any) => (t.status ?? t.statut) === 'pending' || (t.status ?? t.statut) === 'in_progress').length
+        const resolved = items.filter((t: any) => (t.status ?? t.statut) === 'resolved' || (t.status ?? t.statut) === 'closed').length
+        const closed = items.filter((t: any) => (t.status ?? t.statut) === 'closed').length
+        setCounts({ total, open, pending, resolved, closed })
       } catch (error) {
-        console.error('Error fetching dashboard data:', error)
+        // eslint-disable-next-line no-console
+        console.error('Error fetching tickets:', error)
       }
     }
 
-    // fetchDashboardData()
+    fetchTickets()
   }, [])
+
+  const [counts, setCounts] = useState<{ total: number; open: number; pending: number; resolved: number; closed: number }>({ total: 0, open: 0, pending: 0, resolved: 0, closed: 0 })
+  useEffect(() => {
+    const loadCounts = async () => {
+      try {
+        if (!user?.id) return
+        const res = await userService.getTicketCounts([user.id])
+        const arr = res.data?.data ?? []
+        const row = Array.isArray(arr) ? arr.find((r: any) => String(r.user_id) === String(user.id)) : null
+        if (row) {
+          const total = (row.client_created ?? 0)
+          const resolved = (row.client_resolved ?? 0)
+          setCounts((prev) => ({ total, open: prev.open, pending: prev.pending, resolved, closed: resolved }))
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
+    loadCounts()
+  }, [user?.id])
 
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'open':
-        return 'bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full font-medium'
+        return 'bg-gradient-to-r from-cyan-100 to-cyan-200 text-cyan-800 text-xs px-3 py-1.5 rounded-full font-medium shadow-sm border border-cyan-200'
       case 'pending':
-        return 'bg-orange-100 text-orange-800 text-xs px-2 py-1 rounded-full font-medium'
+        return 'bg-gradient-to-r from-amber-100 to-amber-200 text-amber-800 text-xs px-3 py-1.5 rounded-full font-medium shadow-sm border border-amber-200'
       case 'closed':
-        return 'bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full font-medium'
+      case 'resolved':
+        return 'bg-gradient-to-r from-emerald-100 to-emerald-200 text-emerald-800 text-xs px-3 py-1.5 rounded-full font-medium shadow-sm border border-emerald-200'
       default:
-        return 'bg-gray-100 text-gray-800 text-xs px-2 py-1 rounded-full font-medium'
+        return 'bg-gradient-to-r from-slate-100 to-slate-200 text-slate-800 text-xs px-3 py-1.5 rounded-full font-medium shadow-sm border border-slate-200'
     }
   }
 
   const getPriorityBadge = (priority: string) => {
     switch (priority) {
       case 'high':
-        return 'bg-red-100 text-red-800 text-xs px-2 py-1 rounded-full font-medium'
+        return 'bg-gradient-to-r from-red-100 to-red-200 text-red-800 text-xs px-3 py-1.5 rounded-full font-medium shadow-sm border border-red-200'
       case 'medium':
-        return 'bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded-full font-medium'
+        return 'bg-gradient-to-r from-orange-100 to-orange-200 text-orange-800 text-xs px-3 py-1.5 rounded-full font-medium shadow-sm border border-orange-200'
       case 'low':
-        return 'bg-gray-100 text-gray-800 text-xs px-2 py-1 rounded-full font-medium'
+        return 'bg-gradient-to-r from-slate-100 to-slate-200 text-slate-800 text-xs px-3 py-1.5 rounded-full font-medium shadow-sm border border-slate-200'
       default:
-        return 'bg-gray-100 text-gray-800 text-xs px-2 py-1 rounded-full font-medium'
+        return 'bg-gradient-to-r from-slate-100 to-slate-200 text-slate-800 text-xs px-3 py-1.5 rounded-full font-medium shadow-sm border border-slate-200'
     }
   }
 
@@ -155,126 +129,140 @@ export default function ClientDashboardPage() {
   }
 
   return (
-    <div className="space-y-8">
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {/* Total Tickets */}
-        <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100 hover:shadow-xl transition-shadow">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600 mb-1">Total tickets</p>
-              <p className="text-3xl font-bold text-gray-900">{stats.total}</p>
+    <div className="min-h-screen bg-gradient-to-br from-cyan-50 via-white to-teal-50 p-6">
+      <div className="space-y-8 max-w-6xl mx-auto">
+        {/* User ticket stats */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl p-6 border border-cyan-100 hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 bg-gradient-to-br from-white to-cyan-50">
+            <div className="flex items-center justify-between mb-3">
+              <div className="text-sm font-medium text-cyan-600 uppercase tracking-wide">Total tickets</div>
+              <div className="w-10 h-10 bg-gradient-to-r from-cyan-500 to-teal-500 rounded-xl flex items-center justify-center">
+                <div className="w-5 h-5 bg-white rounded-sm"></div>
+              </div>
             </div>
-            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-              <FileText className="w-6 h-6 text-blue-600" />
+            <div className="text-3xl font-bold bg-gradient-to-r from-cyan-600 to-teal-600 bg-clip-text text-transparent">{counts.total}</div>
+            <div className="mt-2 h-1 bg-gradient-to-r from-cyan-500 to-teal-500 rounded-full"></div>
+          </div>
+          
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl p-6 border border-cyan-100 hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 bg-gradient-to-br from-white to-blue-50">
+            <div className="flex items-center justify-between mb-3">
+              <div className="text-sm font-medium text-blue-600 uppercase tracking-wide">Open</div>
+              <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center">
+                <div className="w-3 h-3 bg-white rounded-full animate-pulse"></div>
+              </div>
             </div>
+            <div className="text-3xl font-bold text-blue-600">{counts.open}</div>
+            <div className="mt-2 h-1 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-full"></div>
+          </div>
+          
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl p-6 border border-cyan-100 hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 bg-gradient-to-br from-white to-amber-50">
+            <div className="flex items-center justify-between mb-3">
+              <div className="text-sm font-medium text-amber-600 uppercase tracking-wide">Pending</div>
+              <div className="w-10 h-10 bg-gradient-to-r from-amber-500 to-orange-500 rounded-xl flex items-center justify-center">
+                <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              </div>
+            </div>
+            <div className="text-3xl font-bold text-amber-600">{counts.pending}</div>
+            <div className="mt-2 h-1 bg-gradient-to-r from-amber-500 to-orange-500 rounded-full"></div>
+          </div>
+          
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl p-6 border border-cyan-100 hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 bg-gradient-to-br from-white to-emerald-50">
+            <div className="flex items-center justify-between mb-3">
+              <div className="text-sm font-medium text-emerald-600 uppercase tracking-wide">Resolved/Closed</div>
+              <div className="w-10 h-10 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center">
+                <CheckCircle className="w-5 h-5 text-white" />
+              </div>
+            </div>
+            <div className="text-3xl font-bold text-emerald-600">{counts.resolved + counts.closed}</div>
+            <div className="mt-2 h-1 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full"></div>
           </div>
         </div>
 
-        {/* Open Tickets */}
-        <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100 hover:shadow-xl transition-shadow">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600 mb-1">Open</p>
-              <p className="text-3xl font-bold text-blue-600">{stats.open}</p>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Recent Tickets */}
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-cyan-100 overflow-hidden">
+            <div className="bg-gradient-to-r from-cyan-500 to-teal-500 p-6 text-white">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xl font-bold flex items-center gap-3">
+                  <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
+                    <div className="w-4 h-4 bg-white rounded-sm"></div>
+                  </div>
+                  Recent Tickets
+                </h3>
+                <Link 
+                  href="/clientdashboard/tickets"
+                  className="text-white/90 hover:text-white font-medium flex items-center gap-2 bg-white/10 hover:bg-white/20 px-4 py-2 rounded-xl transition-all duration-200"
+                >
+                  View all
+                  <ArrowRight className="w-4 h-4" />
+                </Link>
+              </div>
             </div>
-            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-              <Clock className="w-6 h-6 text-blue-600" />
-            </div>
-          </div>
-        </div>
-
-        {/* Pending Tickets */}
-        <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100 hover:shadow-xl transition-shadow">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600 mb-1">Pending</p>
-              <p className="text-3xl font-bold text-yellow-600">{stats.pending}</p>
-            </div>
-            <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
-              <AlertTriangle className="w-6 h-6 text-yellow-600" />
-            </div>
-          </div>
-        </div>
-
-        {/* Resolved Tickets */}
-        <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100 hover:shadow-xl transition-shadow">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600 mb-1">resolved</p>
-              <p className="text-3xl font-bold text-green-600">{stats.resolved}</p>
-            </div>
-            <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-              <CheckCircle className="w-6 h-6 text-green-600" />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Recent Tickets */}
-        <div className="bg-white rounded-xl shadow-lg border border-gray-100">
-          <div className="p-6 border-b border-gray-100">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-gray-900">Recent Tickets</h3>
-              <Link 
-                href="/clientdashboard/tickets"
-                className="text-sm text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1"
-              >
-                View all
-                <ArrowRight className="w-4 h-4" />
-              </Link>
-            </div>
-          </div>
-          <div className="p-6">
-            <div className="space-y-4">
-              {recentTickets.map((ticket) => (
-                <div key={ticket.id} className="border border-gray-200 rounded-lg p-4 hover:border-gray-300 transition-colors">
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-gray-500">{ticket.id}</span>
-                      <span className={getStatusBadge(ticket.status)}>
-                        {ticket.status}
-                      </span>
-                      <span className={getPriorityBadge(ticket.priority)}>
-                        {ticket.priority}
-                      </span>
+            <div className="p-6 bg-gradient-to-b from-cyan-50/50 to-white">
+              <div className="space-y-4">
+                {recentTickets.map((ticket) => (
+                  <div key={ticket.id} className="bg-white border border-cyan-100 rounded-xl p-5 hover:border-cyan-300 hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <span className="text-sm font-semibold text-cyan-700 bg-cyan-100 px-3 py-1 rounded-lg border border-cyan-200">{ticket.id}</span>
+                        <span className={getStatusBadge(ticket.status)}>
+                          {ticket.status}
+                        </span>
+                        <span className={getPriorityBadge(ticket.priority)}>
+                          {ticket.priority}
+                        </span>
+                      </div>
+                    </div>
+                    <h4 className="font-semibold text-gray-900 mb-2 text-lg leading-tight">{ticket.title}</h4>
+                    <div className="flex items-center gap-2 text-sm text-gray-500">
+                      <div className="w-2 h-2 bg-cyan-400 rounded-full"></div>
+                      <p>{ticket.created_at}</p>
                     </div>
                   </div>
-                  <h4 className="font-medium text-gray-900 mb-1">{ticket.title}</h4>
-                  <p className="text-sm text-gray-500">{ticket.created_at}</p>
-                </div>
-              ))}
+                ))}
+                {recentTickets.length === 0 && (
+                  <div className="text-center py-12">
+                    <div className="w-16 h-16 bg-gradient-to-r from-cyan-100 to-teal-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                      <div className="w-8 h-8 bg-gradient-to-r from-cyan-500 to-teal-500 rounded-lg opacity-30"></div>
+                    </div>
+                    <p className="text-gray-500 font-medium">Aucun ticket récent</p>
+                    <p className="text-gray-400 text-sm mt-1">Vos tickets apparaîtront ici</p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Important Alerts */}
-        <div className="bg-white rounded-xl shadow-lg border border-gray-100">
-          <div className="p-6 border-b border-gray-100">
-            <h3 className="text-lg font-semibold text-gray-900">Important alerts</h3>
-          </div>
-          <div className="p-6">
-            <div className="space-y-4">
-              {alerts.map((alert) => (
-                <div key={alert.id} className="border border-gray-200 rounded-lg p-4">
-                  <div className="flex items-start gap-3">
-                    {getAlertIcon(alert.type)}
-                    <div className="flex-1">
-                      <h4 className="font-semibold text-gray-900 mb-1">{alert.title}</h4>
-                      <p className="text-sm text-gray-600 mb-3">{alert.message}</p>
-                      {alert.action && (
-                        <Link
-                          href={alert.action.url}
-                          className="inline-block text-sm text-blue-600 hover:text-blue-800 font-medium hover:underline"
-                        >
-                          {alert.action.text}
-                        </Link>
-                      )}
+          {/* Empty space for future content */}
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-cyan-100 overflow-hidden">
+            <div className="bg-gradient-to-r from-teal-500 to-cyan-500 p-6 text-white">
+              <h3 className="text-xl font-bold flex items-center gap-3">
+                <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
+                  <CheckCircle className="w-4 h-4 text-white" />
+                </div>
+                Quick Actions
+              </h3>
+            </div>
+            <div className="p-6 bg-gradient-to-b from-teal-50/50 to-white">
+              <div className="space-y-4">
+                <Link href="/clientdashboard/create-ticket" className="block w-full">
+                  <div className="bg-gradient-to-r from-cyan-500 to-teal-500 text-white p-4 rounded-xl hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5">
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold">Create a new ticket</span>
+                      <ArrowRight className="w-5 h-5" />
                     </div>
                   </div>
-                </div>
-              ))}
+                </Link>
+                
+                <Link href="/clientdashboard/tickets" className="block w-full">
+                  <div className="bg-white border-2 border-cyan-200 p-4 rounded-xl hover:border-cyan-300 hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5">
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold text-cyan-700">View all tickets</span>
+                      <ArrowRight className="w-5 h-5 text-cyan-600" />
+                    </div>
+                  </div>
+                </Link>
+              </div>
             </div>
           </div>
         </div>

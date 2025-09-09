@@ -2,7 +2,7 @@
 // Remplace ton fichier existant par celui-ci.
 
 export const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? 'http://127.0.0.1:8000/api'
-const AUTH_STRATEGY = (process.env.NEXT_PUBLIC_AUTH_STRATEGY ?? 'cookie').toLowerCase() // "cookie" or "token"
+const AUTH_STRATEGY = (process.env.NEXT_PUBLIC_AUTH_STRATEGY ?? 'token').toLowerCase() // "token" or "cookie"
 const TOKEN_KEYS = ['token', 'auth_token', 'access_token']
 
 /** Lit le token depuis localStorage (sync-safe) */
@@ -148,6 +148,22 @@ export const chatService = {
     return handleResponse(res)
   },
 
+  // removed duplicate createConversation definition
+
+  async createConversation(payload: { title?: string; participants: number[]; type?: 'private' | 'group'; group_id?: number }) {
+    const url = `${API_BASE}/conversations`
+    if (AUTH_STRATEGY === 'cookie') await ensureCsrf()
+    const headers = await getAuthHeaders(true)
+    headers['Content-Type'] = 'application/json'
+    const res = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(payload),
+      credentials: AUTH_STRATEGY === 'cookie' ? 'include' : undefined
+    })
+    return handleResponse(res)
+  },
+
   async fetchQuickResponses() {
     const url = `${API_BASE}/quick-responses`
     const res = await fetchWithAuth(url, { headers: await getAuthHeaders(true) })
@@ -185,52 +201,40 @@ export const chatService = {
     }
 
     // Do NOT set Content-Type for FormData - browser will set boundary.
-    let headers = await getAuthHeaders(false)
+    let headers = await getAuthHeaders(true) // ensure Accept: application/json
 
     // Safety: ensure we never set Content-Type when sending FormData
-    if (headers['Content-Type']) {
-      console.debug('[sendMessage] removing Content-Type header for FormData', headers['Content-Type'])
-      delete headers['Content-Type']
-    }
-
-    // Temporary debug: print headers + form entries (remove in production)
-    console.debug('[sendMessage] headers to be sent:', headers)
-    try {
-      for (const entry of (form as FormData).entries()) {
-        const key = entry[0]
-        const value = entry[1]
-        if (value instanceof File) {
-          console.debug('[sendMessage] form entry (file):', key, (value as File).name, (value as File).size)
-        } else {
-          console.debug('[sendMessage] form entry:', key, value)
-        }
-      }
-    } catch (e) {
-      console.debug('[sendMessage] form debug failed', e)
-    }
+    if (headers['Content-Type']) delete headers['Content-Type']
 
     // Quick assert: warn if Authorization missing when using token strategy
     if (AUTH_STRATEGY === 'token' && !headers['Authorization']) {
       console.warn('[sendMessage] Authorization header is missing. Ensure token is in localStorage and AUTH_STRATEGY === "token".')
     }
 
-    try {
-      const res = await fetch(url, {
-        method: 'POST',
-        body: form,
-        headers,
-        credentials: AUTH_STRATEGY === 'cookie' ? 'include' : undefined
-      })
-      return handleResponse(res)
-    } catch (error: any) {
-      console.error('Send message failed:', error)
-      if (error instanceof TypeError && error.message.includes('fetch')) {
-        throw new Error('Network error: Could not connect to server')
-      }
-      throw error
-    }
+    const res = await fetch(url, {
+      method: 'POST',
+      body: form,
+      headers,
+      credentials: AUTH_STRATEGY === 'cookie' ? 'include' : undefined
+    })
+    return handleResponse(res)
   },
+async generateFAQ(ticket: string) {
+  const url = `${API_BASE}/gemini/faq`
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      ...(await getAuthHeaders(true))
+    },
+    body: JSON.stringify({ content: ticket }),
+    credentials: AUTH_STRATEGY === 'cookie' ? 'include' : undefined
+  })
+  return handleResponse(res)
+}
 
+,
   async generateQuickResponses(context: string, language = 'fr') {
     const url = `${API_BASE}/gemini/suggest`
     const payload = { context: context ?? '', language }
