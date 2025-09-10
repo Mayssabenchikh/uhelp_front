@@ -6,7 +6,6 @@ const API_BASE = `${API_ROOT}/api`;
 const api = axios.create({
   baseURL: API_BASE,
   headers: {
-    'Content-Type': 'application/json',
     'Accept': 'application/json'
   },
   withCredentials: false,
@@ -80,7 +79,16 @@ export const dashboardService = {
 export const userService = {
   getProfile: () => api.get('/me'),
   getTicketCounts: (ids: Array<number | string>) => api.get('/users/ticket-counts', { params: { ids: ids.join(',') } }),
-  updateProfile: (data: any) => api.put(`/users/${data.id}`, data),
+updateProfile: (data: any) => {
+  if (data instanceof FormData) {
+    return api.put(`/users/${data.get('id')}`, data, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  }
+  return api.put(`/users/${data.id}`, data, {
+    headers: { 'Content-Type': 'application/json' }
+  });
+},
   updatePassword: (data: { current_password: string; password: string; password_confirmation: string }) =>
     api.put('/user/password', data),
   uploadAvatar: (file: File) => {

@@ -4,11 +4,18 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ticketService } from '@/services/api'
+import { useAppContext } from '@/context/Context'
 
 export default function TicketDetailPage() {
   const params = useParams() as { id?: string }
   const ticketId = params?.id as string
   const queryClient = useQueryClient()
+  const { user } = useAppContext()
+  const [isMounted, setIsMounted] = useState(false)
+
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
 
   const { data: ticketRes } = useQuery({
     queryKey: ['ticket', ticketId],
@@ -35,7 +42,9 @@ export default function TicketDetailPage() {
   })
 
   const ticket = ticketRes?.data
-  const responses = Array.isArray(responsesRes?.data) ? responsesRes?.data : responsesRes?.data?.data || []
+  const responses = Array.isArray(responsesRes?.data)
+    ? responsesRes?.data
+    : responsesRes?.data?.data || []
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -45,48 +54,21 @@ export default function TicketDetailPage() {
 
   const getStatusConfig = (status: string) => {
     const configs = {
-      open: { 
-        badge: 'bg-blue-50 text-blue-700 border border-blue-200', 
-        icon: '🔵'
-      },
-      pending: { 
-        badge: 'bg-amber-50 text-amber-700 border border-amber-200', 
-        icon: '⏳'
-      },
-      closed: { 
-        badge: 'bg-green-50 text-green-700 border border-green-200', 
-        icon: '✅'
-      },
-      resolved: { 
-        badge: 'bg-green-50 text-green-700 border border-green-200', 
-        icon: '✅'
-      },
-      default: { 
-        badge: 'bg-gray-50 text-gray-700 border border-gray-200', 
-        icon: '⚪'
-      }
+      open: { badge: 'bg-blue-50 text-blue-700 border border-blue-200', icon: '🔵' },
+      pending: { badge: 'bg-amber-50 text-amber-700 border border-amber-200', icon: '⏳' },
+      closed: { badge: 'bg-green-50 text-green-700 border border-green-200', icon: '✅' },
+      resolved: { badge: 'bg-green-50 text-green-700 border border-green-200', icon: '✅' },
+      default: { badge: 'bg-gray-50 text-gray-700 border border-gray-200', icon: '⚪' }
     }
     return configs[status as keyof typeof configs] || configs.default
   }
 
   const getPriorityConfig = (priority: string) => {
     const configs = {
-      high: { 
-        badge: 'bg-red-50 text-red-700 border border-red-200', 
-        icon: '🔴'
-      },
-      medium: { 
-        badge: 'bg-yellow-50 text-yellow-700 border border-yellow-200', 
-        icon: '🟡'
-      },
-      low: { 
-        badge: 'bg-gray-50 text-gray-700 border border-gray-200', 
-        icon: '⚪'
-      },
-      default: { 
-        badge: 'bg-gray-50 text-gray-700 border border-gray-200', 
-        icon: '⚪'
-      }
+      high: { badge: 'bg-red-50 text-red-700 border border-red-200', icon: '🔴' },
+      medium: { badge: 'bg-yellow-50 text-yellow-700 border border-yellow-200', icon: '🟡' },
+      low: { badge: 'bg-gray-50 text-gray-700 border border-gray-200', icon: '⚪' },
+      default: { badge: 'bg-gray-50 text-gray-700 border border-gray-200', icon: '⚪' }
     }
     return configs[priority as keyof typeof configs] || configs.default
   }
@@ -96,11 +78,11 @@ export default function TicketDetailPage() {
     const messageDate = new Date(date)
     const diffTime = Math.abs(now.getTime() - messageDate.getTime())
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-    
+
     if (diffDays === 1) return 'Today'
     if (diffDays === 2) return 'Yesterday'
     if (diffDays <= 7) return `${diffDays - 1} days ago`
-    
+
     return messageDate.toLocaleDateString('en-US', {
       day: 'numeric',
       month: 'short',
@@ -134,7 +116,7 @@ export default function TicketDetailPage() {
             </h1>
           </div>
         </div>
-        
+
         {ticket?.description && (
           <div className="bg-gray-50/50 rounded-xl p-6 border border-gray-100">
             <h3 className="text-sm font-semibold text-gray-700 mb-3 uppercase tracking-wide">
@@ -161,7 +143,7 @@ export default function TicketDetailPage() {
             </h2>
           </div>
         </div>
-        
+
         <div className="p-6">
           {responses.length === 0 ? (
             <div className="text-center py-12">
@@ -171,41 +153,53 @@ export default function TicketDetailPage() {
             </div>
           ) : (
             <div className="space-y-6">
-              {responses.map((r: any, index: number) => (
-                <div key={r.id} className="group">
-                  <div className="flex items-start gap-4">
-                    <div className="flex-shrink-0">
-                      <div className="w-10 h-10 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-full flex items-center justify-center text-white font-semibold text-sm">
-                        {(r.user?.name || `User ${r.user_id}`).charAt(0).toUpperCase()}
+              {responses.map((r: any, index: number) => {
+                const isCurrentUser = r.user_id === user?.id
+                const displayName = isCurrentUser ? user?.name : r.user?.name || `User ${r.user_id}`
+                const avatar =
+                  isCurrentUser && (user?.avatar || user?.profile_photo_url)
+                    ? user.avatar || user.profile_photo_url
+                    : r.user?.avatar || r.user?.profile_photo_url ||
+                      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face"
+
+                return (
+                  <div key={r.id} className="group">
+                    <div className="flex items-start gap-4">
+                      {/* Avatar */}
+                      <div className="flex-shrink-0 w-10 h-10 rounded-full overflow-hidden">
+                        <img
+                          src={isMounted ? avatar : "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face"}
+                          alt={isMounted ? displayName : "User avatar"}
+                          className="w-full h-full object-cover"
+                        />
                       </div>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="bg-gray-50/80 rounded-2xl p-6 border border-gray-100 group-hover:bg-gray-50 transition-colors">
-                        <div className="flex items-center justify-between mb-3">
-                          <h4 className="font-semibold text-gray-900">
-                            {r.user?.name || `User ${r.user_id}`}
-                          </h4>
-                          <span className="text-sm text-gray-500 font-medium">
-                            {formatDate(r.created_at)}
-                          </span>
+                      {/* Message */}
+                      <div className="flex-1 min-w-0">
+                        <div className="bg-gray-50/80 rounded-2xl p-6 border border-gray-100 group-hover:bg-gray-50 transition-colors">
+                          <div className="flex items-center justify-between mb-3">
+                            <h4 className="font-semibold text-gray-900">{displayName}</h4>
+                            <span className="text-sm text-gray-500 font-medium">
+                              {formatDate(r.created_at)}
+                            </span>
+                          </div>
+                          <p className="text-gray-800 leading-relaxed whitespace-pre-line">
+                            {r.message || r.body}
+                          </p>
                         </div>
-                        <p className="text-gray-800 leading-relaxed whitespace-pre-line">
-                          {r.message || r.body}
-                        </p>
                       </div>
                     </div>
+                    {index < responses.length - 1 && (
+                      <div className="ml-5 mt-4 mb-2">
+                        <div className="w-px h-4 bg-gray-200"></div>
+                      </div>
+                    )}
                   </div>
-                  {index < responses.length - 1 && (
-                    <div className="ml-5 mt-4 mb-2">
-                      <div className="w-px h-4 bg-gray-200"></div>
-                    </div>
-                  )}
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </div>
-        
+
         {/* Reply Form */}
         <div className="bg-gray-50/30 border-t border-gray-100 p-6">
           {error && (
@@ -216,7 +210,7 @@ export default function TicketDetailPage() {
               </div>
             </div>
           )}
-          
+
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label htmlFor="reply-message" className="block text-sm font-semibold text-gray-700 mb-2">
@@ -231,7 +225,7 @@ export default function TicketDetailPage() {
                 className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent resize-none transition-all duration-200"
               />
             </div>
-            
+
             <div className="flex justify-end">
               <button
                 type="submit"

@@ -31,18 +31,17 @@ export default function ProfilePage() {
       setFormData({
         fullName: user.name || '',
         email: user.email || '',
-        phone: user.phone_number || '',
+        phone: user.phone || user.phone_number || '',
         password: '',
         confirmPassword: '',
       })
-
-      setPreviewUrl(
-        user.profile_photo_url
-          ? user.profile_photo_url.startsWith('http')
-            ? user.profile_photo_url
-            : `${process.env.NEXT_PUBLIC_API_BASE}/storage/${user.profile_photo_url}`
-          : null
-      )
+      if (user.profile_photo) {
+        setPreviewUrl(user.profile_photo.startsWith('http') ? user.profile_photo : `${API_BASE}/storage/${user.profile_photo}`)
+      } else if (user.profile_photo_url) {
+        setPreviewUrl(user.profile_photo_url)
+      } else {
+        setPreviewUrl(null)
+      }
     }
   }, [user])
 
@@ -54,24 +53,23 @@ export default function ProfilePage() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] ?? null
     if (file) {
-      // Crée un URL temporaire pour preview
       setPreviewUrl(URL.createObjectURL(file))
     }
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
+const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
     setMessage('')
-
     try {
+      // client-side validation
       if (formData.password && formData.password !== formData.confirmPassword) {
         setMessage('Passwords do not match')
         setIsLoading(false)
         return
       }
 
-      if (!user?.id) {
+      if (!user || !user.id) {
         setMessage('User not loaded')
         setIsLoading(false)
         return
@@ -84,48 +82,51 @@ export default function ProfilePage() {
         return
       }
 
+      // Build FormData for multipart upload
       const payload = new FormData()
-      payload.append('_method', 'PUT') // Laravel : POST + _method=PUT
+      // Laravel uses _method override to allow PUT via multipart/form-data
+      payload.append('_method', 'PUT')
       payload.append('name', formData.fullName)
       payload.append('email', formData.email)
       if (formData.phone) payload.append('phone_number', formData.phone)
       if (formData.password) payload.append('password', formData.password)
+      // role not changed here; backend should use existing role if not present
 
+      // file
       const file = fileInputRef.current?.files?.[0]
       if (file) {
-        // Renommer le fichier pour éviter les accents ou espaces
-        const cleanName = file.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '_')
-        const newFile = new File([file], `${Date.now()}_${cleanName}`, { type: file.type })
-        payload.append('profile_photo', newFile)
+        payload.append('profile_photo', file)
       }
 
-      const backendUrl = `${process.env.NEXT_PUBLIC_API_BASE}/users/${user.id}`
-
-      const res = await fetch(backendUrl, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
+      const res = await fetch(`${API_BASE}/api/users/${user.id}`, {
+        method: 'POST', // POST with _method=PUT
+        headers: {
+          Authorization: `Bearer ${token}`,
+          // DO NOT set Content-Type: browser will set multipart boundary
+        },
         body: payload,
       })
-
+console.log('moncer')
       if (!res.ok) {
         const text = await res.text()
-        throw new Error(`Update failed (${res.status}): ${text}`)
+        let msg = text
+        try {
+          const json = JSON.parse(text)
+          msg = json.message ?? JSON.stringify(json)
+        } catch {}
+        throw new Error(`Update failed (${res.status}): ${msg}`)
       }
+console.log('mayssa')
 
       const data = await res.json()
       toast.success(data.message ?? 'Profile updated successfully')
 
-      setPreviewUrl(
-        data.user.profile_photo_url
-          ? data.user.profile_photo_url.startsWith('http')
-            ? data.user.profile_photo_url
-            : `${process.env.NEXT_PUBLIC_API_BASE}/storage/${data.user.profile_photo_url}`
-          : null
-      )
-
-      setFormData(prev => ({ ...prev, password: '', confirmPassword: '' }))
-      setMessage('Profile updated successfully!')
+      // refresh app state (AppProvider will re-fetch /api/me if necessary)
+      // simplest: reload current route so context picks updated user
       router.refresh()
+      // optional: keep user on page and show success message
+      setMessage('Profile updated successfully!')
+      setFormData(prev => ({ ...prev, password: '', confirmPassword: '' }))
     } catch (err: any) {
       console.error('Profile update error', err)
       toast.error(err?.message ?? 'Error updating profile')
@@ -135,21 +136,35 @@ export default function ProfilePage() {
     }
   }
 
-  if (!isMounted) return <div>Loading...</div>
+  if (!isMounted) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-gray-500">Loading profile...</div>
+      </div>
+    )
+  }
 
   return (
     <div className="max-w-4xl mx-auto">
       <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+
         {/* Profile Header */}
         <div className="bg-gradient-to-r from-cyan-500 to-blue-600 px-6 py-8">
           <div className="flex items-center gap-6">
             <div className="relative">
               <div className="w-24 h-24 bg-white rounded-full overflow-hidden border-4 border-white shadow-lg">
-                <img
-                  src={previewUrl ?? 'https://images.unsplash.com/photo-1494790108755-2616b75c7e90?w=150&h=150&fit=crop&crop=face'}
-                  alt="Profile"
-                  className="w-full h-full object-cover"
-                />
+               {previewUrl ? (
+  <img
+    src={previewUrl}
+    alt="Profile"
+    className="w-full h-full object-cover"
+  />
+) : (
+  <div className="w-full h-full flex items-center justify-center bg-gray-300 text-gray-700 text-3xl font-bold">
+    {user?.name ? user.name.charAt(0).toUpperCase() : '?'}
+  </div>
+)}
+
               </div>
               <button
                 type="button"
@@ -161,7 +176,7 @@ export default function ProfilePage() {
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/jpeg,image/jpg,image/png,image/webp"
+                accept="image/*"
                 className="hidden"
                 onChange={handleFileChange}
               />
@@ -169,7 +184,7 @@ export default function ProfilePage() {
             <div className="text-white">
               <h2 className="text-2xl font-bold">{user?.name || 'User Name'}</h2>
               <p className="text-cyan-100">{user?.email || 'user@example.com'}</p>
-              <p className="text-cyan-100 text-sm">{user?.role || 'Admin'}</p>
+              <p className="text-cyan-100 text-sm">{user?.role || 'Client'}</p>
             </div>
           </div>
         </div>
@@ -177,22 +192,16 @@ export default function ProfilePage() {
         {/* Profile Form */}
         <div className="p-6">
           {message && (
-            <div
-              className={`mb-4 p-4 rounded-lg ${
-                message.includes('successfully') ? 'bg-green-100 text-green-700 border border-green-300' : 'bg-red-100 text-red-700 border border-red-300'
-              }`}
-            >
+            <div className={`mb-4 p-4 rounded-lg ${message.includes('successfully') ? 'bg-green-100 text-green-700 border border-green-300' : 'bg-red-100 text-red-700 border border-red-300'}`}>
               {message}
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Full Name */}
               <div>
                 <label htmlFor="fullName" className="block text-sm font-medium text-gray-700 mb-2">
-                  <UserIcon className="w-4 h-4 inline mr-2" />
-                  Full Name
+                  <UserIcon className="w-4 h-4 inline mr-2" /> Full Name
                 </label>
                 <input
                   type="text"
@@ -201,15 +210,12 @@ export default function ProfilePage() {
                   value={formData.fullName}
                   onChange={handleInputChange}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition-colors"
-                  placeholder="Enter your full name"
                 />
               </div>
 
-              {/* Email */}
               <div>
                 <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                  <Mail className="w-4 h-4 inline mr-2" />
-                  Email
+                  <Mail className="w-4 h-4 inline mr-2" /> Email
                 </label>
                 <input
                   type="email"
@@ -221,11 +227,9 @@ export default function ProfilePage() {
                 />
               </div>
 
-              {/* Phone */}
               <div>
                 <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
-                  <Phone className="w-4 h-4 inline mr-2" />
-                  Phone
+                  <Phone className="w-4 h-4 inline mr-2" /> Phone
                 </label>
                 <input
                   type="tel"
@@ -237,12 +241,11 @@ export default function ProfilePage() {
                 />
               </div>
 
-              {/* Role (Read-only) */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Role</label>
                 <input
                   type="text"
-                  value={user?.role || 'Admin'}
+                  value={user?.role || 'Client'}
                   readOnly
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-100 text-gray-600"
                 />
@@ -255,8 +258,7 @@ export default function ProfilePage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-                    <Lock className="w-4 h-4 inline mr-2" />
-                    New Password
+                    <Lock className="w-4 h-4 inline mr-2" /> New Password
                   </label>
                   <input
                     type="password"
@@ -271,8 +273,7 @@ export default function ProfilePage() {
 
                 <div>
                   <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
-                    <Lock className="w-4 h-4 inline mr-2" />
-                    Confirm Password
+                    <Lock className="w-4 h-4 inline mr-2" /> Confirm Password
                   </label>
                   <input
                     type="password"

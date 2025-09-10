@@ -96,7 +96,7 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
   }
 
   const getHeaderContent = () => {
-    const userName = isMounted && user?.name ? user.name : 'John'
+    const userName = isMounted && user?.name ? user.name : 'client'
     
     // Check for ticket detail page
     if (pathname?.match(/^\/clientdashboard\/tickets\/[^/]+$/)) {
@@ -188,7 +188,7 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
             </div>
             <div>
               <p className="font-bold text-lg">
-                {isMounted && user?.name ? user.name : 'John Smith'}
+                {isMounted && user?.name ? user.name : 'client '}
               </p>
               <p className="text-cyan-100 text-sm font-medium">
                 {isMounted && (user?.role || 'Client')}
