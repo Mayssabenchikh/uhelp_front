@@ -1,13 +1,14 @@
 "use client"
 
 import { useEffect, useState } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ticketService } from '@/services/api'
 import { useAppContext } from '@/context/Context'
 
 export default function TicketDetailPage() {
   const params = useParams() as { id?: string }
+  const router = useRouter()
   const ticketId = params?.id as string
   const queryClient = useQueryClient()
   const { user } = useAppContext()
@@ -42,9 +43,9 @@ export default function TicketDetailPage() {
   })
 
   const ticket = ticketRes?.data
-  const responses = Array.isArray(responsesRes?.data)
-    ? responsesRes?.data
-    : responsesRes?.data?.data || []
+  const responses = Array.isArray(responsesRes?.data) 
+    ? responsesRes.data 
+    : (responsesRes?.data as any)?.data || []
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -115,6 +116,15 @@ export default function TicketDetailPage() {
               {ticket?.subject || ticket?.titre || `Ticket ${ticketId}`}
             </h1>
           </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => router.push(`/clientdashboard/tickets/${ticketId}/edit`)}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 transition-colors font-medium shadow-sm"
+            >
+              <span>✏️</span>
+              Edit Ticket
+            </button>
+          </div>
         </div>
 
         {ticket?.description && (
@@ -155,7 +165,20 @@ export default function TicketDetailPage() {
             <div className="space-y-6">
               {responses.map((r: any, index: number) => {
                 const isCurrentUser = r.user_id === user?.id
-                const displayName = isCurrentUser ? user?.name : r.user?.name || `User ${r.user_id}`
+                
+                // Better name resolution logic
+                let displayName: string
+                if (isCurrentUser) {
+                  displayName = user?.name || 'You'
+                } else {
+                  // Try multiple sources for the user name  
+                  displayName = r.user?.name || 
+                               // If this is the client who created the ticket, use ticket client info
+                               (r.user_id === ticket.client?.id ? `${ticket.client?.name} (Client)` : null) ||
+                               // Last fallback
+                               'Unknown User'
+                }
+                
                 const avatar =
                   isCurrentUser && (user?.avatar || user?.profile_photo_url)
                     ? user.avatar || user.profile_photo_url

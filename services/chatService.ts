@@ -165,9 +165,21 @@ export const chatService = {
   },
 
   async fetchQuickResponses() {
-    const url = `${API_BASE}/quick-responses`
-    const res = await fetchWithAuth(url, { headers: await getAuthHeaders(true) })
-    return handleResponse(res)
+    // Return predefined quick responses since backend endpoint doesn't exist
+    return {
+      data: [
+        { id: 1, content: "Bonjour, comment puis-je vous aider aujourd'hui ?", title: "Salutation" },
+        { id: 2, content: "Je vais examiner votre problème et vous revenir rapidement.", title: "En cours d'examen" },
+        { id: 3, content: "Votre problème a été résolu. N'hésitez pas si vous avez d'autres questions.", title: "Problème résolu" },
+        { id: 4, content: "Merci pour votre patience. Je travaille actuellement sur votre demande.", title: "Patience" },
+        { id: 5, content: "Pourriez-vous me fournir plus de détails sur votre problème ?", title: "Plus de détails" },
+        { id: 6, content: "Je vous remercie pour votre retour. Nous prenons note de vos suggestions.", title: "Remerciement" },
+        { id: 7, content: "Nous avons bien reçu votre demande et nous y donnons suite.", title: "Accusé de réception" },
+        { id: 8, content: "Je vous présente mes excuses pour ce désagrément. Nous allons corriger cela.", title: "Excuses" },
+        { id: 9, content: "Votre demande a été transférée au service compétent.", title: "Transfert" },
+        { id: 10, content: "N'hésitez pas à nous recontacter si vous avez d'autres questions.", title: "Invitation contact" }
+      ]
+    }
   },
 
   /**

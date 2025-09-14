@@ -106,7 +106,7 @@ const handleSubmit = async (e: React.FormEvent) => {
         },
         body: payload,
       })
-console.log('moncer')
+
       if (!res.ok) {
         const text = await res.text()
         let msg = text
@@ -116,7 +116,6 @@ console.log('moncer')
         } catch {}
         throw new Error(`Update failed (${res.status}): ${msg}`)
       }
-console.log('mayssa')
 
       const data = await res.json()
       toast.success(data.message ?? 'Profile updated successfully')

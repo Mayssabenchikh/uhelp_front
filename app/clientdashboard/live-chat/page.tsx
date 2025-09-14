@@ -111,7 +111,7 @@ export default function LiveChatPage() {
   const loadQuickResponses = async () => {
     try {
       const res = await chatService.fetchQuickResponses()
-      const list = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : (res?.items ?? res ?? []))
+      const list = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : (res ?? []))
       const mapped = (list as any[]).map((q: any) => (typeof q === 'string' ? q : (q.content ?? q.body ?? q.text ?? q.title ?? String(q))))
       setQuickResponses(mapped.filter(Boolean).slice(0, 12))
     } catch (e) {

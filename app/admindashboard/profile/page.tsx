@@ -35,7 +35,6 @@ export default function ProfilePage() {
         password: '',
         confirmPassword: '',
       })
-      // preview from user profile photo if exists
       if (user.profile_photo) {
         setPreviewUrl(user.profile_photo.startsWith('http') ? user.profile_photo : `${API_BASE}/storage/${user.profile_photo}`)
       } else if (user.profile_photo_url) {
@@ -54,12 +53,11 @@ export default function ProfilePage() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] ?? null
     if (file) {
-      const url = URL.createObjectURL(file)
-      setPreviewUrl(url)
+      setPreviewUrl(URL.createObjectURL(file))
     }
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
+const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
     setMessage('')
@@ -108,7 +106,7 @@ export default function ProfilePage() {
         },
         body: payload,
       })
-
+console.log('moncer')
       if (!res.ok) {
         const text = await res.text()
         let msg = text
@@ -118,6 +116,7 @@ export default function ProfilePage() {
         } catch {}
         throw new Error(`Update failed (${res.status}): ${msg}`)
       }
+console.log('mayssa')
 
       const data = await res.json()
       toast.success(data.message ?? 'Profile updated successfully')
@@ -148,20 +147,24 @@ export default function ProfilePage() {
   return (
     <div className="max-w-4xl mx-auto">
       <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+
         {/* Profile Header */}
         <div className="bg-gradient-to-r from-cyan-500 to-blue-600 px-6 py-8">
           <div className="flex items-center gap-6">
             <div className="relative">
               <div className="w-24 h-24 bg-white rounded-full overflow-hidden border-4 border-white shadow-lg">
-                <img
-                  src={
-                    previewUrl ??
-                    user?.avatar ??
-                    'https://images.unsplash.com/photo-1494790108755-2616b75c7e90?w=150&h=150&fit=crop&crop=face'
-                  }
-                  alt="Profile"
-                  className="w-full h-full object-cover"
-                />
+               {previewUrl ? (
+  <img
+    src={previewUrl}
+    alt="Profile"
+    className="w-full h-full object-cover"
+  />
+) : (
+  <div className="w-full h-full flex items-center justify-center bg-gray-300 text-gray-700 text-3xl font-bold">
+    {user?.name ? user.name.charAt(0).toUpperCase() : '?'}
+  </div>
+)}
+
               </div>
               <button
                 type="button"
@@ -170,7 +173,6 @@ export default function ProfilePage() {
               >
                 <Camera className="w-4 h-4" />
               </button>
-
               <input
                 ref={fileInputRef}
                 type="file"
@@ -182,9 +184,7 @@ export default function ProfilePage() {
             <div className="text-white">
               <h2 className="text-2xl font-bold">{user?.name || 'User Name'}</h2>
               <p className="text-cyan-100">{user?.email || 'user@example.com'}</p>
-              <p className="text-cyan-100 text-sm">
-                {user?.role || (user?.roles && user.roles[0]?.name) || 'Admin'}
-              </p>
+              <p className="text-cyan-100 text-sm">{user?.role || 'Client'}</p>
             </div>
           </div>
         </div>
@@ -199,11 +199,9 @@ export default function ProfilePage() {
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Full Name */}
               <div>
                 <label htmlFor="fullName" className="block text-sm font-medium text-gray-700 mb-2">
-                  <UserIcon className="w-4 h-4 inline mr-2" />
-                  Full Name
+                  <UserIcon className="w-4 h-4 inline mr-2" /> Full Name
                 </label>
                 <input
                   type="text"
@@ -212,15 +210,12 @@ export default function ProfilePage() {
                   value={formData.fullName}
                   onChange={handleInputChange}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition-colors"
-                  placeholder="Enter your full name"
                 />
               </div>
 
-              {/* Email */}
               <div>
                 <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                  <Mail className="w-4 h-4 inline mr-2" />
-                  Email
+                  <Mail className="w-4 h-4 inline mr-2" /> Email
                 </label>
                 <input
                   type="email"
@@ -232,11 +227,9 @@ export default function ProfilePage() {
                 />
               </div>
 
-              {/* Phone */}
               <div>
                 <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
-                  <Phone className="w-4 h-4 inline mr-2" />
-                  Phone
+                  <Phone className="w-4 h-4 inline mr-2" /> Phone
                 </label>
                 <input
                   type="tel"
@@ -248,12 +241,11 @@ export default function ProfilePage() {
                 />
               </div>
 
-              {/* Role (Read-only) */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Role</label>
                 <input
                   type="text"
-                  value={user?.role || (user?.roles && user.roles[0]?.name) || 'Admin'}
+                  value={user?.role || 'Client'}
                   readOnly
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-100 text-gray-600"
                 />
@@ -266,8 +258,7 @@ export default function ProfilePage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-                    <Lock className="w-4 h-4 inline mr-2" />
-                    New Password
+                    <Lock className="w-4 h-4 inline mr-2" /> New Password
                   </label>
                   <input
                     type="password"
@@ -282,8 +273,7 @@ export default function ProfilePage() {
 
                 <div>
                   <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
-                    <Lock className="w-4 h-4 inline mr-2" />
-                    Confirm Password
+                    <Lock className="w-4 h-4 inline mr-2" /> Confirm Password
                   </label>
                   <input
                     type="password"

@@ -41,8 +41,10 @@ export default function ClientDashboardPage() {
     const fetchTickets = async () => {
       try {
         const res = await ticketService.getUserTickets({ per_page: 200 })
-        const raw = (res.data?.data ?? res.data ?? [])
-        const items = Array.isArray(raw?.data) ? raw.data : (Array.isArray(raw) ? raw : [])
+        const raw = (res.data && typeof res.data === 'object' && !Array.isArray(res.data) && 'data' in res.data)
+          ? (res.data as { data: any[] }).data
+          : (Array.isArray(res.data) ? res.data : res.data ?? []);
+        const items = Array.isArray(raw) ? raw : []
         const mapped = items.map((t: any) => ({
           id: t.ticket_id || `TK-${t.id}`,
           title: t.subject || t.titre || 'Ticket',
@@ -225,8 +227,8 @@ export default function ClientDashboardPage() {
                     <div className="w-16 h-16 bg-gradient-to-r from-cyan-100 to-teal-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
                       <div className="w-8 h-8 bg-gradient-to-r from-cyan-500 to-teal-500 rounded-lg opacity-30"></div>
                     </div>
-                    <p className="text-gray-500 font-medium">Aucun ticket récent</p>
-                    <p className="text-gray-400 text-sm mt-1">Vos tickets apparaîtront ici</p>
+                    <p className="text-gray-500 font-medium">No recent tickets</p>
+                    <p className="text-gray-400 text-sm mt-1">Your tickets will appear here</p>
                   </div>
                 )}
               </div>

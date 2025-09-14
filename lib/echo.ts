@@ -25,24 +25,41 @@ export function getEcho(): Echo<any> {
     authorizer: (channel: any, options: any) => {
       return {
         authorize: (socketId: string, callback: Function) => {
+          // Get token from multiple possible locations
+          const token = typeof window !== 'undefined' 
+            ? localStorage.getItem('token') || localStorage.getItem('access_token') || localStorage.getItem('auth_token')
+            : null
+
+          console.log('Echo auth - Token found:', !!token) // Debug log
+          console.log('Echo auth - Channel:', channel.name) // Debug log
+
           fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}/broadcasting/auth`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
               'Accept': 'application/json',
-              ...(typeof window !== 'undefined' && localStorage.getItem('access_token')
-                ? { Authorization: `Bearer ${localStorage.getItem('access_token')}` }
-                : {}),
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
             },
             body: JSON.stringify({ socket_id: socketId, channel_name: channel.name }),
             credentials: 'include',
           })
             .then(async (res) => {
-              if (!res.ok) throw new Error(await res.text())
+              console.log('Echo auth response status:', res.status) // Debug log
+              if (!res.ok) {
+                const errorText = await res.text()
+                console.error('Echo auth error:', errorText) // Debug log
+                throw new Error(errorText)
+              }
               return res.json()
             })
-            .then((data) => callback(false, data))
-            .catch((error) => callback(true, error))
+            .then((data) => {
+              console.log('Echo auth success:', data) // Debug log
+              callback(false, data)
+            })
+            .catch((error) => {
+              console.error('Echo auth failed:', error) // Debug log
+              callback(true, error)
+            })
         },
       }
     },

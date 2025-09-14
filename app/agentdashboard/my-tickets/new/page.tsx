@@ -6,16 +6,14 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import {
   ArrowLeft,
   Save,
-  User,
+  FileText,
+  Users,
   AlertCircle,
   Clock,
   CheckCircle,
-  Users,
-  FileText,
-  MessageSquare,
-  Tag
 } from 'lucide-react'
 import { cn, API_BASE, getAuthHeaders } from '@/lib/utils'
+import { useAppContext } from '@/context/Context'
 import toast from 'react-hot-toast'
 
 // --- Interfaces ---
@@ -49,31 +47,13 @@ interface User {
   role: string
 }
 
-interface Agent extends User {
-  department?: string
-}
-
 // --- Fetch clients (users with role 'client') ---
 async function fetchClients(): Promise<User[]> {
   const res = await fetch(`${API_BASE}/api/users?role=client`, {
     headers: getAuthHeaders()
   })
   if (!res.ok) {
-    const text = await res.text()
-    throw new Error(`Failed to fetch clients: ${text}`)
-  }
-  const json = await res.json()
-  return json.data ?? json
-}
-
-// --- Fetch agents ---
-async function fetchAgents(): Promise<Agent[]> {
-  const res = await fetch(`${API_BASE}/api/agents`, {
-    headers: getAuthHeaders()
-  })
-  if (!res.ok) {
-    const text = await res.text()
-    throw new Error(`Failed to fetch agents: ${text}`)
+    throw new Error(`Failed to fetch clients: ${await res.text()}`)
   }
   const json = await res.json()
   return json.data ?? json
@@ -95,10 +75,11 @@ async function createTicket(data: CreateTicketData): Promise<TicketResponse> {
   return res.json()
 }
 
-export default function NewTicketPage() {
+export default function AgentNewTicketPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const clientIdFromUrl = searchParams.get('client_id')
+  const { user } = useAppContext() // agent connecté
 
   const [isMounted, setIsMounted] = useState(false)
   const [formData, setFormData] = useState<CreateTicketData>({
@@ -107,26 +88,20 @@ export default function NewTicketPage() {
     statut: 'open',
     priorite: 'medium',
     category: '',
-    client_id: clientIdFromUrl ? parseInt(clientIdFromUrl) : undefined
+    client_id: clientIdFromUrl ? parseInt(clientIdFromUrl) : undefined,
+    agentassigne_id: user?.id // assigné automatiquement
   })
 
-  // Categories predefined list
   const categories = ['technical', 'billing', 'feature-request', 'bug-report', 'other']
 
   useEffect(() => {
     setIsMounted(true)
   }, [])
 
-  // Fetch data
+  // Fetch clients
   const { data: clients, isLoading: clientsLoading } = useQuery<User[], Error>({
     queryKey: ['clients'],
     queryFn: fetchClients,
-    enabled: isMounted
-  })
-
-  const { data: agents, isLoading: agentsLoading } = useQuery<Agent[], Error>({
-    queryKey: ['agents'],
-    queryFn: fetchAgents,
     enabled: isMounted
   })
 
@@ -135,7 +110,7 @@ export default function NewTicketPage() {
     mutationFn: createTicket,
     onSuccess: (data) => {
       toast.success('Ticket created successfully!')
-      router.push(`/admindashboard/tickets/${data.id}`)
+      router.push(`/agentdashboard/my-tickets/${data.id}`)
     },
     onError: (error: any) => {
       toast.error(error.message || 'Failed to create ticket')
@@ -152,7 +127,6 @@ export default function NewTicketPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     
-    // Basic validation
     if (!formData.titre.trim()) {
       toast.error('Title is required')
       return
@@ -160,6 +134,11 @@ export default function NewTicketPage() {
     if (!formData.description.trim()) {
       toast.error('Description is required')
       return
+    }
+
+    // injecter l'agent connecté
+    if (user?.id) {
+      formData.agentassigne_id = user.id
     }
 
     createMutation.mutate(formData)
@@ -208,7 +187,7 @@ export default function NewTicketPage() {
         <div className="flex items-center gap-3">
           <button
             type="button"
-            onClick={() => router.push('/admindashboard/globaltickets')}
+            onClick={() => router.push('/agentdashboard/my-tickets')}
             className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
           >
             Cancel
@@ -230,7 +209,6 @@ export default function NewTicketPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Ticket Information */}
             <div className="bg-white rounded-lg shadow-sm border p-6">
               <div className="flex items-center gap-2 mb-4">
                 <FileText className="w-5 h-5 text-gray-400" />
@@ -263,7 +241,7 @@ export default function NewTicketPage() {
                     onChange={(e) => handleInputChange('category', e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
                   >
-                    <option value="">Select category </option>
+                    <option value="">Select category</option>
                     {categories.map((category) => (
                       <option key={category} value={category}>
                         {category}
@@ -288,60 +266,30 @@ export default function NewTicketPage() {
               </div>
             </div>
 
-            {/* Assignment Section */}
+            {/* Client Selection */}
             <div className="bg-white rounded-lg shadow-sm border p-6">
               <div className="flex items-center gap-2 mb-4">
                 <Users className="w-5 h-5 text-gray-400" />
-                <h2 className="text-lg font-semibold text-gray-900">Assignment</h2>
+                <h2 className="text-lg font-semibold text-gray-900">Assign Client</h2>
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label htmlFor="client_id" className="block text-sm font-medium text-gray-700 mb-1">
-                    Client
-                  </label>
-                  <select
-                    id="client_id"
-                    value={formData.client_id || ''}
-                    onChange={(e) => handleInputChange('client_id', e.target.value ? parseInt(e.target.value) : '')}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
-                    disabled={clientsLoading || !!clientIdFromUrl}
-                  >
-                    <option value="">Select client (optional)</option>
-                    {clients?.map((client) => (
-                      <option key={client.id} value={client.id}>
-                        {client.name} ({client.email})
-                      </option>
-                    ))}
-                  </select>
-                  {clientsLoading && (
-                    <p className="text-sm text-gray-500 mt-1">Loading clients...</p>
-                  )}
-                </div>
-
-                <div>
-                  <label htmlFor="agentassigne_id" className="block text-sm font-medium text-gray-700 mb-1">
-                    Assigned Agent
-                  </label>
-                  <select
-                    id="agentassigne_id"
-                    value={formData.agentassigne_id || ''}
-                    onChange={(e) => handleInputChange('agentassigne_id', e.target.value ? parseInt(e.target.value) : '')}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
-                    disabled={agentsLoading}
-                  >
-                    <option value="">Assign later</option>
-                    {agents?.map((agent) => (
-                      <option key={agent.id} value={agent.id}>
-                        {agent.name} {agent.department && `(${agent.department})`}
-                      </option>
-                    ))}
-                  </select>
-                  {agentsLoading && (
-                    <p className="text-sm text-gray-500 mt-1">Loading agents...</p>
-                  )}
-                </div>
-              </div>
+              <select
+                id="client_id"
+                value={formData.client_id || ''}
+                onChange={(e) => handleInputChange('client_id', e.target.value ? parseInt(e.target.value) : '')}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
+                disabled={clientsLoading || !!clientIdFromUrl}
+              >
+                <option value="">Select client (optional)</option>
+                {clients?.map((client) => (
+                  <option key={client.id} value={client.id}>
+                    {client.name} ({client.email})
+                  </option>
+                ))}
+              </select>
+              {clientsLoading && (
+                <p className="text-sm text-gray-500 mt-1">Loading clients...</p>
+              )}
             </div>
           </div>
 

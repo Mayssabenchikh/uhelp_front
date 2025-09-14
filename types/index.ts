@@ -3,6 +3,8 @@ export interface UserShort {
   id: number
   name: string
   department?: string | null
+  email?: string | null
+  avatar?: string | null
 }
 
 export interface User {
@@ -13,6 +15,7 @@ export interface User {
   department?: string | null
   avatar?: string
   profile_photo_url?: string
+  profile_photo?: string
   phone_number?: string
   location?: string
   created_at: string
@@ -26,6 +29,8 @@ export interface Ticket {
   description: string
   status: string
   priority: string
+    titre?: string;
+
   category?: string
   created_at: string
   updated_at: string
@@ -40,7 +45,6 @@ export interface TicketResponse {
   user_id: number
   user: UserShort
   message: string
-  attachments?: Attachment[]
   created_at: string
 }
 

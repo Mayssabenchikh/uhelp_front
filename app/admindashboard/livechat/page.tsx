@@ -238,7 +238,7 @@ export default function LiveChatPage(): React.JSX.Element {
   async function loadQuickResponses() {
     try {
       const res = await chatService.fetchQuickResponses()
-      const list = Array.isArray(res) ? res : (res.data ?? res.items ?? res)
+      const list = Array.isArray(res) ? res : (res.data ?? res)
       const normalized: QuickResponse[] = (list as any[]).map((q) => ({ id: q.id, content: q.content ?? q.body ?? q.text ?? q.title ?? String(q), title: q.title, language: q.language ?? null }))
       setQuickResponses(normalized)
     } catch (err) {
