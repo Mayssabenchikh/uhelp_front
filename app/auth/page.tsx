@@ -8,6 +8,7 @@ import toast from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
 import image1 from '../../public/images/image1.png';
 import image2 from '../../public/images/image2.png';
+import AuthMobile from '@/components/AuthMobile';
 
 interface LoginErrors {
   email: string;
@@ -222,11 +223,13 @@ export default function AuthPage() {
       >
         {/* Background circle */}
         <div
-          className={`absolute w-[2000px] h-[2000px] rounded-full bg-gradient-to-br from-teal-400 to-cyan-600 transition-all duration-[1.8s] ease-in-out z-10 ${
+          className={`absolute w-[2000px] h-[2000px] rounded-full bg-gradient-to-br from-teal-400 to-cyan-600 transition-all duration-[1.8s] ease-in-out ${
             isSignUp
               ? 'top-[-10%] right-[52%] translate-x-full -translate-y-1/2'
               : 'top-[-10%] right-[48%] -translate-y-1/2'
           }`}
+          // on small screens keep behind content
+          style={{ zIndex: 8 }}
         ></div>
 
         {isLoading && (
@@ -239,146 +242,164 @@ export default function AuthPage() {
         )}
 
         {/* Forms container */}
-        <div className="absolute w-full h-full top-0 left-0">
-          <div
-            className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1/2 h-full flex items-center justify-center transition-all duration-1000 ease-in-out delay-300 z-20 ${
-              isSignUp ? '-translate-x-full' : 'translate-x-0'
-            }`}
-          >
-            {/* Sign In Form */}
+        <div className="w-full h-auto md:absolute md:top-0 md:left-0 md:w-full md:h-full">
+          {/* Mobile simplified forms - extracted component for separation */}
+          <AuthMobile
+            isSignUp={isSignUp}
+            loginData={loginData}
+            registerData={registerData}
+            loginErrors={loginErrors}
+            registerErrors={registerErrors}
+            onLoginChange={handleLoginChange}
+            onRegisterChange={handleRegisterChange}
+            onLogin={handleLogin}
+            onRegister={handleRegister}
+            isLoading={isLoading}
+            toggleMode={mode => (mode ? switchToSignUp() : switchToSignIn())}
+          />
+
+          {/* Desktop / Tablet - keep original animated layout for md+ */}
+          <div className="hidden md:block">
             <div
-              className={`flex flex-col items-center justify-center px-8 w-full max-w-md transition-all duration-500 ${
-                isSignUp ? 'opacity-0 z-10 pointer-events-none' : 'opacity-100 z-20 pointer-events-auto'
+              className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-1/2 h-full flex items-center justify-center transition-all duration-1000 ease-in-out delay-300 z-20 ${
+                isSignUp ? '-translate-x-full' : 'translate-x-0'
               }`}
             >
-              <h2 className="text-4xl font-semibold text-gray-700 mb-8">Sign in</h2>
-
-              <div className="w-full mb-3">
-                <div className="w-full bg-gray-100 h-14 rounded-full grid grid-cols-[15%_85%] px-2 relative">
-                  <Mail className="text-gray-400 text-lg self-center justify-self-center" />
-                  <input
-                    type="email"
-                    placeholder="Email"
-                    value={loginData.email}
-                    onChange={e => handleLoginChange('email', e.target.value)}
-                    className="bg-transparent outline-none border-none text-lg font-semibold text-gray-700 placeholder-gray-400"
-                    disabled={isLoading}
-                  />
-                </div>
-                {loginErrors.email && <p className="text-red-500 text-sm mt-1 ml-4">{loginErrors.email}</p>}
-              </div>
-
-              <div className="w-full mb-3">
-                <div className="w-full bg-gray-100 h-14 rounded-full grid grid-cols-[15%_85%] px-2 relative">
-                  <Lock className="text-gray-400 text-lg self-center justify-self-center" />
-                  <input
-                    type="password"
-                    placeholder="Password"
-                    value={loginData.password}
-                    onChange={e => handleLoginChange('password', e.target.value)}
-                    className="bg-transparent outline-none border-none text-lg font-semibold text-gray-700 placeholder-gray-400"
-                    disabled={isLoading}
-                  />
-                </div>
-                {loginErrors.password && <p className="text-red-500 text-sm mt-1 ml-4">{loginErrors.password}</p>}
-              </div>
-
-              <button
-                type="button"
-                onClick={handleLogin}
-                disabled={isLoading}
-                aria-disabled={isLoading}
-                className="w-36 bg-teal-500 border-none outline-none h-12 rounded-full text-white uppercase font-semibold my-4 cursor-pointer transition-colors duration-500 hover:bg-teal-600 disabled:opacity-50 disabled:cursor-not-allowed"
+              {/* Sign In Form */}
+              <div
+                className={`flex flex-col items-center justify-center px-8 w-full max-w-md transition-all duration-500 ${
+                  isSignUp ? 'opacity-0 z-10 pointer-events-none' : 'opacity-100 z-20 pointer-events-auto'
+                }`}
               >
-                {isLoading ? 'Loading...' : 'Login'}
-              </button>
-            </div>
+                <h2 className="text-4xl font-semibold text-gray-700 mb-8">Sign in</h2>
 
-            {/* Sign Up Form */}
-            <div
-              className={`flex flex-col items-center justify-center px-8 w-full max-w-md absolute transition-all duration-500 ${
-                isSignUp ? 'opacity-100 z-20 pointer-events-auto' : 'opacity-0 z-10 pointer-events-none'
-              }`}
-            >
-              <h2 className="text-4xl font-semibold text-gray-700 mb-8">Sign up</h2>
-
-              <div className="w-full mb-3">
-                <div className="w-full bg-gray-100 h-14 rounded-full grid grid-cols-[15%_85%] px-2 relative">
-                  <User className="text-gray-400 text-lg self-center justify-self-center" />
-                  <input
-                    type="text"
-                    placeholder="Name"
-                    value={registerData.name}
-                    onChange={e => handleRegisterChange('name', e.target.value)}
-                    className="bg-transparent outline-none border-none text-lg font-semibold text-gray-700 placeholder-gray-400"
-                    disabled={isLoading}
-                  />
+                <div className="w-full mb-3">
+                  <div className="w-full bg-gray-100 h-14 rounded-full grid grid-cols-[15%_85%] px-2 relative">
+                    <Mail className="text-gray-400 text-lg self-center justify-self-center" />
+                    <input
+                      type="email"
+                      placeholder="Email"
+                      value={loginData.email}
+                      onChange={e => handleLoginChange('email', e.target.value)}
+                      className="bg-transparent outline-none border-none text-lg font-semibold text-gray-700 placeholder-gray-400"
+                      disabled={isLoading}
+                    />
+                  </div>
+                  {loginErrors.email && <p className="text-red-500 text-sm mt-1 ml-4">{loginErrors.email}</p>}
                 </div>
-                {registerErrors.name && <p className="text-red-500 text-sm mt-1 ml-4">{registerErrors.name}</p>}
+
+                <div className="w-full mb-3">
+                  <div className="w-full bg-gray-100 h-14 rounded-full grid grid-cols-[15%_85%] px-2 relative">
+                    <Lock className="text-gray-400 text-lg self-center justify-self-center" />
+                    <input
+                      type="password"
+                      placeholder="Password"
+                      value={loginData.password}
+                      onChange={e => handleLoginChange('password', e.target.value)}
+                      className="bg-transparent outline-none border-none text-lg font-semibold text-gray-700 placeholder-gray-400"
+                      disabled={isLoading}
+                    />
+                  </div>
+                  {loginErrors.password && <p className="text-red-500 text-sm mt-1 ml-4">{loginErrors.password}</p>}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleLogin}
+                  disabled={isLoading}
+                  aria-disabled={isLoading}
+                  className="w-36 bg-teal-500 border-none outline-none h-12 rounded-full text-white uppercase font-semibold my-4 cursor-pointer transition-colors duration-500 hover:bg-teal-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isLoading ? 'Loading...' : 'Login'}
+                </button>
               </div>
 
-              <div className="w-full mb-3">
-                <div className="w-full bg-gray-100 h-14 rounded-full grid grid-cols-[15%_85%] px-2 relative">
-                  <Mail className="text-gray-400 text-lg self-center justify-self-center" />
-                  <input
-                    type="email"
-                    placeholder="Email"
-                    value={registerData.email}
-                    onChange={e => handleRegisterChange('email', e.target.value)}
-                    className="bg-transparent outline-none border-none text-lg font-semibold text-gray-700 placeholder-gray-400"
-                    disabled={isLoading}
-                  />
-                </div>
-                {registerErrors.email && <p className="text-red-500 text-sm mt-1 ml-4">{registerErrors.email}</p>}
-              </div>
-
-              <div className="w-full mb-3">
-                <div className="w-full bg-gray-100 h-14 rounded-full grid grid-cols-[15%_85%] px-2 relative">
-                  <Lock className="text-gray-400 text-lg self-center justify-self-center" />
-                  <input
-                    type="password"
-                    placeholder="Password"
-                    value={registerData.password}
-                    onChange={e => handleRegisterChange('password', e.target.value)}
-                    className="bg-transparent outline-none border-none text-lg font-semibold text-gray-700 placeholder-gray-400"
-                    disabled={isLoading}
-                  />
-                </div>
-                {registerErrors.password && <p className="text-red-500 text-sm mt-1 ml-4">{registerErrors.password}</p>}
-              </div>
-
-              <div className="w-full mb-3">
-                <div className="w-full bg-gray-100 h-14 rounded-full grid grid-cols-[15%_85%] px-2 relative">
-                  <Lock className="text-gray-400 text-lg self-center justify-self-center" />
-                  <input
-                    type="password"
-                    placeholder="Confirm Password"
-                    value={registerData.passwordConfirmation}
-                    onChange={e => handleRegisterChange('passwordConfirmation', e.target.value)}
-                    className="bg-transparent outline-none border-none text-lg font-semibold text-gray-700 placeholder-gray-400"
-                    disabled={isLoading}
-                  />
-                </div>
-                {registerErrors.passwordConfirmation && (
-                  <p className="text-red-500 text-sm mt-1 ml-4">{registerErrors.passwordConfirmation}</p>
-                )}
-              </div>
-
-              <button
-                type="button"
-                onClick={handleRegister}
-                disabled={isLoading}
-                aria-disabled={isLoading}
-                className="w-36 bg-teal-500 border-none outline-none h-12 rounded-full text-white uppercase font-semibold my-4 cursor-pointer transition-colors duration-500 hover:bg-teal-600 disabled:opacity-50 disabled:cursor-not-allowed"
+              {/* Sign Up Form */}
+              <div
+                className={`flex flex-col items-center justify-center px-8 w-full max-w-md absolute transition-all duration-500 ${
+                  isSignUp ? 'opacity-100 z-20 pointer-events-auto' : 'opacity-0 z-10 pointer-events-none'
+                }`}
               >
-                {isLoading ? 'Loading...' : 'Sign up'}
-              </button>
+                <h2 className="text-4xl font-semibold text-gray-700 mb-8">Sign up</h2>
+
+                <div className="w-full mb-3">
+                  <div className="w-full bg-gray-100 h-14 rounded-full grid grid-cols-[15%_85%] px-2 relative">
+                    <User className="text-gray-400 text-lg self-center justify-self-center" />
+                    <input
+                      type="text"
+                      placeholder="Name"
+                      value={registerData.name}
+                      onChange={e => handleRegisterChange('name', e.target.value)}
+                      className="bg-transparent outline-none border-none text-lg font-semibold text-gray-700 placeholder-gray-400"
+                      disabled={isLoading}
+                    />
+                  </div>
+                  {registerErrors.name && <p className="text-red-500 text-sm mt-1 ml-4">{registerErrors.name}</p>}
+                </div>
+
+                <div className="w-full mb-3">
+                  <div className="w-full bg-gray-100 h-14 rounded-full grid grid-cols-[15%_85%] px-2 relative">
+                    <Mail className="text-gray-400 text-lg self-center justify-self-center" />
+                    <input
+                      type="email"
+                      placeholder="Email"
+                      value={registerData.email}
+                      onChange={e => handleRegisterChange('email', e.target.value)}
+                      className="bg-transparent outline-none border-none text-lg font-semibold text-gray-700 placeholder-gray-400"
+                      disabled={isLoading}
+                    />
+                  </div>
+                  {registerErrors.email && <p className="text-red-500 text-sm mt-1 ml-4">{registerErrors.email}</p>}
+                </div>
+
+                <div className="w-full mb-3">
+                  <div className="w-full bg-gray-100 h-14 rounded-full grid grid-cols-[15%_85%] px-2 relative">
+                    <Lock className="text-gray-400 text-lg self-center justify-self-center" />
+                    <input
+                      type="password"
+                      placeholder="Password"
+                      value={registerData.password}
+                      onChange={e => handleRegisterChange('password', e.target.value)}
+                      className="bg-transparent outline-none border-none text-lg font-semibold text-gray-700 placeholder-gray-400"
+                      disabled={isLoading}
+                    />
+                  </div>
+                  {registerErrors.password && <p className="text-red-500 text-sm mt-1 ml-4">{registerErrors.password}</p>}
+                </div>
+
+                <div className="w-full mb-3">
+                  <div className="w-full bg-gray-100 h-14 rounded-full grid grid-cols-[15%_85%] px-2 relative">
+                    <Lock className="text-gray-400 text-lg self-center justify-self-center" />
+                    <input
+                      type="password"
+                      placeholder="Confirm Password"
+                      value={registerData.passwordConfirmation}
+                      onChange={e => handleRegisterChange('passwordConfirmation', e.target.value)}
+                      className="bg-transparent outline-none border-none text-lg font-semibold text-gray-700 placeholder-gray-400"
+                      disabled={isLoading}
+                    />
+                  </div>
+                  {registerErrors.passwordConfirmation && (
+                    <p className="text-red-500 text-sm mt-1 ml-4">{registerErrors.passwordConfirmation}</p>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleRegister}
+                  disabled={isLoading}
+                  aria-disabled={isLoading}
+                  className="w-36 bg-teal-500 border-none outline-none h-12 rounded-full text-white uppercase font-semibold my-4 cursor-pointer transition-colors duration-500 hover:bg-teal-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isLoading ? 'Loading...' : 'Sign up'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Panels (unchanged) */}
-        <div className="absolute h-full w-full top-0 left-0 grid grid-cols-2">
+        {/* Panels (unchanged but hidden on small screens) */}
+        <div className="absolute h-full w-full top-0 left-0 hidden md:grid md:grid-cols-2">
           {/* Left Panel */}
           <div
             className={`flex flex-col items-end justify-around text-center z-20 py-12 pr-[17%] pl-[12%] ${

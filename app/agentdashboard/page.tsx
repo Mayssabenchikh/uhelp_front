@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { useTranslation } from 'react-i18next'
 import {
   TrendingUp,
   CheckCircle,
@@ -65,6 +66,7 @@ function getTicketTitle(t: AnyTicket) {
 export default function AgentDashboard() {
   const router = useRouter()
   const { user } = useAppContext()
+  const { t, i18n } = useTranslation()
   const [stats, setStats] = useState<DashboardStats>({
     openTickets: 0,
     resolvedToday: 0,
@@ -200,144 +202,144 @@ export default function AgentDashboard() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-end items-center">
-       
-
-        <div className="flex gap-3">
+    <div className="space-y-4 md:space-y-6">
+      {/* Header - Responsive */}
+      <div className="flex flex-col sm:flex-row sm:justify-end sm:items-center gap-4">
+        <div className="flex flex-col sm:flex-row gap-3">
           <Link 
             href="/agentdashboard/available-tickets"
-            className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            className="flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm"
           >
             <Clock className="w-4 h-4" />
-            Available Tickets
+            {t('agent.availableTicketsBtn')}
           </Link>
           <Link 
             href="/agentdashboard/my-tickets" 
-            className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            className="flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm"
           >
             <MessageCircle className="w-4 h-4" />
-            My Tickets
+            {t('agent.myTicketsBtn')}
           </Link>
           <Link 
             href="/agentdashboard/my-tickets/new" 
-            className="flex items-center gap-2 px-4 py-2 bg-cyan-500 text-white rounded-lg hover:bg-cyan-600 transition-colors"
+            className="flex items-center justify-center gap-2 px-4 py-2 bg-cyan-500 text-white rounded-lg hover:bg-cyan-600 transition-colors text-sm"
           >
-            + New Ticket
+            + {t('agent.newTicketBtn')}
           </Link>
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white p-6 rounded-lg shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-              <TrendingUp className="w-6 h-6 text-blue-500" />
-            </div>
-          </div>
-                              <div className="space-y-1">
-            <p className="text-3xl font-bold text-gray-900">{stats.totalResolved}</p>
-            <p className="text-gray-600">Total resolved</p>
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-lg shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-              <CheckCircle className="w-6 h-6 text-green-500" />
-            </div>
-          </div>
-                    <div className="space-y-1">
-            <p className="text-3xl font-bold text-gray-900">{stats.resolvedToday}</p>
-            <p className="text-gray-600">Tickets resolved today</p>
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-lg shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-              <CheckCircle className="w-6 h-6 text-purple-500" />
+      {/* Stats - Responsive Grid */}
+      <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+        <div className="bg-white p-4 md:p-6 rounded-lg shadow-sm hover:shadow-md transition-shadow">
+          <div className="flex items-center justify-between mb-3 md:mb-4">
+            <div className="w-10 h-10 md:w-12 md:h-12 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+              <TrendingUp className="w-5 h-5 md:w-6 md:h-6 text-blue-500" />
             </div>
           </div>
           <div className="space-y-1">
-            <p className="text-3xl font-bold text-gray-900">{stats.totalResolved}</p>
-            <p className="text-gray-600">Total resolved</p>
+            <p className="text-2xl md:text-3xl font-bold text-gray-900">{stats.totalResolved}</p>
+            <p className="text-gray-600 text-sm md:text-base">{t('agent.totalResolved')}</p>
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-lg shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-              <Clock className="w-6 h-6 text-orange-500" />
+        <div className="bg-white p-4 md:p-6 rounded-lg shadow-sm hover:shadow-md transition-shadow">
+          <div className="flex items-center justify-between mb-3 md:mb-4">
+            <div className="w-10 h-10 md:w-12 md:h-12 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
+              <CheckCircle className="w-5 h-5 md:w-6 md:h-6 text-green-500" />
             </div>
           </div>
           <div className="space-y-1">
-            <p className="text-3xl font-bold text-gray-900">{stats.availableTickets}</p>
-            <p className="text-gray-600">Available tickets</p>
+            <p className="text-2xl md:text-3xl font-bold text-gray-900">{stats.resolvedToday}</p>
+            <p className="text-gray-600 text-sm md:text-base">{t('agent.resolvedToday')}</p>
+          </div>
+        </div>
+
+        <div className="bg-white p-4 md:p-6 rounded-lg shadow-sm hover:shadow-md transition-shadow">
+          <div className="flex items-center justify-between mb-3 md:mb-4">
+            <div className="w-10 h-10 md:w-12 md:h-12 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
+              <CheckCircle className="w-5 h-5 md:w-6 md:h-6 text-purple-500" />
+            </div>
+          </div>
+          <div className="space-y-1">
+            <p className="text-2xl md:text-3xl font-bold text-gray-900">{stats.openTickets}</p>
+            <p className="text-gray-600 text-sm md:text-base">{t('agent.openTickets')}</p>
+          </div>
+        </div>
+
+        <div className="bg-white p-4 md:p-6 rounded-lg shadow-sm hover:shadow-md transition-shadow xs:col-span-2 lg:col-span-1">
+          <div className="flex items-center justify-between mb-3 md:mb-4">
+            <div className="w-10 h-10 md:w-12 md:h-12 bg-orange-100 rounded-lg flex items-center justify-center flex-shrink-0">
+              <Clock className="w-5 h-5 md:w-6 md:h-6 text-orange-500" />
+            </div>
+          </div>
+          <div className="space-y-1">
+            <p className="text-2xl md:text-3xl font-bold text-gray-900">{stats.availableTickets}</p>
+            <p className="text-gray-600 text-sm md:text-base">{t('agent.availableTickets')}</p>
           </div>
         </div>
       </div>
 
-      {/* Priority Tickets - now full width */}
+      {/* Priority Tickets - Responsive */}
       <div className="bg-white rounded-lg shadow-sm">
-        <div className="p-6 border-b border-gray-200 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <AlertTriangle className="w-5 h-5 text-red-500" />
-            <h3 className="text-lg font-semibold text-gray-900">Priority Tickets</h3>
-          </div>
-          <div>
-            <span className="bg-red-100 text-red-600 px-2 py-1 rounded-full text-sm font-medium">
-              {priorityTickets.length} urgent
-            </span>
+        <div className="p-4 md:p-6 border-b border-gray-200">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0" />
+              <h3 className="text-lg font-semibold text-gray-900">{t('agent.priorityTickets')}</h3>
+            </div>
+            <div>
+              <span className="bg-red-100 text-red-600 px-2 py-1 rounded-full text-sm font-medium">
+                {priorityTickets.length} {t('agent.urgent')}
+              </span>
+            </div>
           </div>
         </div>
 
-        <div className="p-6">
+        <div className="p-4 md:p-6">
           {priorityTickets.length === 0 ? (
             <div className="text-center text-gray-500 py-8">
               <AlertTriangle className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-              <p>No urgent tickets at the moment</p>
+              <p>{t('agent.noUrgentTickets')}</p>
             </div>
           ) : (
             <div className="space-y-4">
               {priorityTickets.map((ticket) => (
-                <div key={ticket.id ?? Math.random()} className="border-l-4 border-red-500 bg-gray-50 p-4 rounded-r-lg">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center">
-                        <span className="text-sm font-semibold text-gray-600">
+                <div key={ticket.id ?? Math.random()} className="border-l-4 border-red-500 bg-gray-50 p-3 md:p-4 rounded-r-lg">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-2">
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                      <div className="w-8 h-8 md:w-10 md:h-10 bg-gray-300 rounded-full flex items-center justify-center flex-shrink-0">
+                        <span className="text-xs md:text-sm font-semibold text-gray-600">
                           {ticket.client?.name?.split?.(' ')?.map?.((n: string) => n[0]).join('') ?? ''}
                         </span>
                       </div>
-                      <div>
-                        <p className="font-semibold text-gray-900">{ticket.ticket_id ?? `TK-${ticket.id ?? ''}`}</p>
-                        <p className="text-sm text-gray-600">{ticket.client?.name ?? '—'}</p>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-semibold text-gray-900 text-sm md:text-base truncate">{ticket.ticket_id ?? `TK-${ticket.id ?? ''}`}</p>
+                        <p className="text-xs md:text-sm text-gray-600 truncate">{ticket.client?.name ?? '—'}</p>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                      <span className="bg-red-500 text-white px-2 py-1 rounded text-sm font-medium">Urgent</span>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <span className="bg-red-500 text-white px-2 py-1 rounded text-xs md:text-sm font-medium">{t('tickets.urgent')}</span>
                     </div>
                   </div>
 
-                  <p className="text-gray-900 font-medium mb-1">{getTicketTitle(ticket)}</p>
-                  <p className="text-sm text-gray-600 mb-2">{ticket.description ?? '—'}</p>
+                  <p className="text-gray-900 font-medium mb-1 text-sm md:text-base line-clamp-2">{getTicketTitle(ticket)}</p>
+                  <p className="text-xs md:text-sm text-gray-600 mb-2 line-clamp-2">{ticket.description ?? '—'}</p>
 
-                  <div className="flex items-center gap-4 text-sm text-gray-500">
-                    <div className="flex items-center gap-1">
-                      <Mail className="w-4 h-4" />
-                      <span>{ticket.client?.email ?? '—'}</span>
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs md:text-sm text-gray-500">
+                    <div className="flex items-center gap-1 min-w-0 flex-1">
+                      <Mail className="w-3 h-3 md:w-4 md:h-4 flex-shrink-0" />
+                      <span className="truncate">{ticket.client?.email ?? '—'}</span>
                     </div>
-                    <div className="flex items-center gap-1">
-                      <Eye className="w-4 h-4 text-cyan-600" />
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <Eye className="w-3 h-3 md:w-4 md:h-4 text-cyan-600" />
                       <span
-                        className="cursor-pointer text-cyan-600"
+                        className="cursor-pointer text-cyan-600 hover:text-cyan-700 transition-colors"
                         style={{ textDecoration: 'none' }}
                         onClick={() => router.push(`/agentdashboard/my-tickets/${ticket.id}`)}
                       >
-                        view
+                        {t('agent.view')}
                       </span>
                     </div>
                   </div>

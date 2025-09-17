@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useTranslation } from 'react-i18next'
 import { ticketService } from '@/services/api'
 import { useAppContext } from '@/context/Context'
 
@@ -12,6 +13,7 @@ export default function TicketDetailPage() {
   const ticketId = params?.id as string
   const queryClient = useQueryClient()
   const { user } = useAppContext()
+  const { t } = useTranslation()
   const [isMounted, setIsMounted] = useState(false)
 
   useEffect(() => {
@@ -109,7 +111,7 @@ export default function TicketDetailPage() {
                 {statusConfig.icon} {currentStatus}
               </span>
               <span className={`text-sm px-3 py-1 rounded-full font-medium ${priorityConfig.badge}`}>
-                {priorityConfig.icon} {currentPriority} Priority
+                {priorityConfig.icon} {currentPriority} {t('tickets.priority')}
               </span>
             </div>
             <h1 className="text-2xl font-bold text-gray-900 mb-3">
@@ -122,7 +124,7 @@ export default function TicketDetailPage() {
               className="inline-flex items-center gap-2 px-4 py-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 transition-colors font-medium shadow-sm"
             >
               <span>✏️</span>
-              Edit Ticket
+              {t('actions.edit')} {t('nav.tickets').slice(0, -1)}
             </button>
           </div>
         </div>
@@ -130,7 +132,7 @@ export default function TicketDetailPage() {
         {ticket?.description && (
           <div className="bg-gray-50/50 rounded-xl p-6 border border-gray-100">
             <h3 className="text-sm font-semibold text-gray-700 mb-3 uppercase tracking-wide">
-              Description
+              {t('tickets.description')}
             </h3>
             <p className="text-gray-800 leading-relaxed whitespace-pre-line">
               {ticket.description}
@@ -144,10 +146,10 @@ export default function TicketDetailPage() {
         <div className="bg-gradient-to-r from-gray-50 to-gray-50/50 p-6 border-b border-gray-100">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-3">
-              💬 Messages
+              💬 {t('messages.title')}
               {responses.length > 0 && (
                 <span className="text-sm bg-cyan-100 text-cyan-700 px-3 py-1 rounded-full font-medium">
-                  {responses.length} message{responses.length > 1 ? 's' : ''}
+                  {responses.length} {responses.length > 1 ? t('messages.messagesPlural') : t('messages.messageSingular')}
                 </span>
               )}
             </h2>
@@ -158,8 +160,8 @@ export default function TicketDetailPage() {
           {responses.length === 0 ? (
             <div className="text-center py-12">
               <div className="text-6xl mb-4">💬</div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No messages yet</h3>
-              <p className="text-gray-600">Start the conversation by sending a message below.</p>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">{t('messages.noMessages')}</h3>
+              <p className="text-gray-600">{t('messages.startConversation')}</p>
             </div>
           ) : (
             <div className="space-y-6">
@@ -237,14 +239,14 @@ export default function TicketDetailPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label htmlFor="reply-message" className="block text-sm font-semibold text-gray-700 mb-2">
-                Your Reply
+                {t('messages.yourReply')}
               </label>
               <textarea
                 id="reply-message"
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 rows={4}
-                placeholder="Type your reply here..."
+                placeholder={t('messages.typeReplyPlaceholder')}
                 className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent resize-none transition-all duration-200"
               />
             </div>
@@ -258,12 +260,12 @@ export default function TicketDetailPage() {
                 {addResponse.isPending ? (
                   <>
                     <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-                    Sending...
+                    {t('messages.sending')}
                   </>
                 ) : (
                   <>
                     <span>📤</span>
-                    Send Reply
+                    {t('messages.sendReply')}
                   </>
                 )}
               </button>
