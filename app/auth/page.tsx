@@ -145,8 +145,9 @@ export default function AuthPage() {
     return String(rawRole).toLowerCase().replace(/[\s_-]/g, '');
   };
 
-  const handleLogin = async (e: React.MouseEvent<HTMLButtonElement>) => {
-    e.preventDefault();
+  // Change handler signatures to accept form submit events as well
+  const handleLogin = async (e?: React.FormEvent | React.MouseEvent<HTMLButtonElement>) => {
+    if (e && 'preventDefault' in e) e.preventDefault()
     if (!validateLoginForm()) return;
 
     const result = await login(loginData.email, loginData.password);
@@ -181,9 +182,9 @@ export default function AuthPage() {
     router.push('/');
   };
 
-  // Use MouseEvent for button clicks (keeps consistent with handleLogin)
-  const handleRegister = async (e: React.MouseEvent<HTMLButtonElement>) => {
-    e.preventDefault();
+  // Use flexible event type for register as well
+  const handleRegister = async (e?: React.FormEvent | React.MouseEvent<HTMLButtonElement>) => {
+    if (e && 'preventDefault' in e) e.preventDefault()
     if (!validateRegisterForm()) return;
 
     const result = await register(registerData.name, registerData.email, registerData.password);
@@ -266,14 +267,12 @@ export default function AuthPage() {
               }`}
             >
               {/* Sign In Form */}
-              <div
-                className={`flex flex-col items-center justify-center px-8 w-full max-w-md transition-all duration-500 ${
+              <form onSubmit={handleLogin} className={`flex flex-col items-center justify-center px-8 w-full max-w-md transition-all duration-500 ${
                   isSignUp ? 'opacity-0 z-10 pointer-events-none' : 'opacity-100 z-20 pointer-events-auto'
-                }`}
-              >
-                <h2 className="text-4xl font-semibold text-gray-700 mb-8">Sign in</h2>
+                }`}>
+                 <h2 className="text-4xl font-semibold text-gray-700 mb-8">Sign in</h2>
 
-                <div className="w-full mb-3">
+                 <div className="w-full mb-3">
                   <div className="w-full bg-gray-100 h-14 rounded-full grid grid-cols-[15%_85%] px-2 relative">
                     <Mail className="text-gray-400 text-lg self-center justify-self-center" />
                     <input
@@ -304,23 +303,20 @@ export default function AuthPage() {
                 </div>
 
                 <button
-                  type="button"
-                  onClick={handleLogin}
+                  type="submit"
                   disabled={isLoading}
                   aria-disabled={isLoading}
                   className="w-36 bg-teal-500 border-none outline-none h-12 rounded-full text-white uppercase font-semibold my-4 cursor-pointer transition-colors duration-500 hover:bg-teal-600 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isLoading ? 'Loading...' : 'Login'}
                 </button>
-              </div>
+              </form>
 
-              {/* Sign Up Form */}
-              <div
-                className={`flex flex-col items-center justify-center px-8 w-full max-w-md absolute transition-all duration-500 ${
+               {/* Sign Up Form */}
+              <form onSubmit={handleRegister} className={`flex flex-col items-center justify-center px-8 w-full max-w-md absolute transition-all duration-500 ${
                   isSignUp ? 'opacity-100 z-20 pointer-events-auto' : 'opacity-0 z-10 pointer-events-none'
-                }`}
-              >
-                <h2 className="text-4xl font-semibold text-gray-700 mb-8">Sign up</h2>
+                }`}>
+                 <h2 className="text-4xl font-semibold text-gray-700 mb-8">Sign up</h2>
 
                 <div className="w-full mb-3">
                   <div className="w-full bg-gray-100 h-14 rounded-full grid grid-cols-[15%_85%] px-2 relative">
@@ -385,15 +381,14 @@ export default function AuthPage() {
                 </div>
 
                 <button
-                  type="button"
-                  onClick={handleRegister}
+                  type="submit"
                   disabled={isLoading}
                   aria-disabled={isLoading}
                   className="w-36 bg-teal-500 border-none outline-none h-12 rounded-full text-white uppercase font-semibold my-4 cursor-pointer transition-colors duration-500 hover:bg-teal-600 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isLoading ? 'Loading...' : 'Sign up'}
                 </button>
-              </div>
+              </form>
             </div>
           </div>
         </div>

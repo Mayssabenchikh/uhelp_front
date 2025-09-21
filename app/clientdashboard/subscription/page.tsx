@@ -5,6 +5,7 @@ import { API_BASE, getStoredToken } from "@/lib/utils";
 import { toast } from "react-hot-toast";
 import { Check, Crown, Zap, Shield, Star } from "lucide-react";
 import { useRouter } from "next/navigation"
+import { useTranslation } from 'react-i18next'
 
 interface Plan {
   id: number;
@@ -27,6 +28,7 @@ export default function SubscriptionPlansPage() {
   const [subscribingId, setSubscribingId] = useState<number | null>(null);
   const [cancelling, setCancelling] = useState(false);
   const router = useRouter()
+  const { t } = useTranslation()
 
   const token = getStoredToken();
 
@@ -135,7 +137,7 @@ export default function SubscriptionPlansPage() {
       <div className="flex items-center justify-center min-h-96">
         <div className="flex flex-col items-center space-y-4">
           <div className="w-12 h-12 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-gray-600 text-lg font-medium">Loading subscription plans...</p>
+          <p className="text-gray-600 text-lg font-medium">{t('subscription.loadingPlans') || 'Loading subscription plans...'}</p>
         </div>
       </div>
     );
@@ -148,8 +150,8 @@ export default function SubscriptionPlansPage() {
           <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <Crown className="w-8 h-8 text-gray-400" />
           </div>
-          <p className="text-xl text-gray-600">No subscription plans available</p>
-          <p className="text-gray-500 mt-2">Please check back later for available plans.</p>
+          <p className="text-xl text-gray-600">{t('subscription.noPlans') || 'No subscription plans available'}</p>
+          <p className="text-gray-500 mt-2">{t('subscription.checkBack') || 'Please check back later for available plans.'}</p>
         </div>
       </div>
     );
@@ -159,12 +161,8 @@ export default function SubscriptionPlansPage() {
     <div className="max-w-7xl mx-auto">
       {/* Header Section */}
       <div className="text-center mb-12">
-        <h1 className="text-4xl font-bold text-gray-900 mb-4">
-          Choose Your Perfect Plan
-        </h1>
-        <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-          Unlock powerful features and take your experience to the next level with our flexible subscription options.
-        </p>
+        <h1 className="text-4xl font-bold text-gray-900 mb-4">{t('subscription.choosePlan') || 'Choose Your Perfect Plan'}</h1>
+        <p className="text-xl text-gray-600 max-w-2xl mx-auto">{t('subscription.subtitle') || 'Unlock powerful features and take your experience to the next level with our flexible subscription options.'}</p>
       </div>
 
       {/* Current Subscription Alert */}
@@ -176,9 +174,7 @@ export default function SubscriptionPlansPage() {
             </div>
             <div>
               <h3 className="text-lg font-semibold text-gray-900">Active Subscription</h3>
-              <p className="text-gray-600">
-                You currently have an active subscription. You can upgrade, downgrade, or cancel anytime.
-              </p>
+              <p className="text-gray-600">{t('subscription.activeMessage') || 'You currently have an active subscription. You can upgrade, downgrade, or cancel anytime.'}</p>
             </div>
           </div>
         </div>
@@ -205,18 +201,14 @@ export default function SubscriptionPlansPage() {
               {/* Popular Badge */}
               {isPopular && !isCurrent && (
                 <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                  <div className="bg-gradient-to-r from-purple-500 to-purple-600 text-white px-4 py-2 rounded-full text-sm font-semibold shadow-lg">
-                    Most Popular
-                  </div>
+                  <div className="bg-gradient-to-r from-purple-500 to-purple-600 text-white px-4 py-2 rounded-full text-sm font-semibold shadow-lg">{t('subscription.mostPopular') || 'Most Popular'}</div>
                 </div>
               )}
 
               {/* Current Plan Badge */}
               {isCurrent && (
                 <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                  <div className="bg-gradient-to-r from-cyan-500 to-teal-500 text-white px-4 py-2 rounded-full text-sm font-semibold shadow-lg">
-                    Current Plan
-                  </div>
+                  <div className="bg-gradient-to-r from-cyan-500 to-teal-500 text-white px-4 py-2 rounded-full text-sm font-semibold shadow-lg">{t('subscription.currentPlan') || 'Current Plan'}</div>
                 </div>
               )}
 
@@ -315,8 +307,8 @@ export default function SubscriptionPlansPage() {
       onClick={() => router.push("/clientdashboard/faq")}
       className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-teal-500 text-white rounded-xl font-medium hover:from-cyan-600 hover:to-teal-600 transition-all duration-200"
     >
-      View FAQ
-    </button>
+      {t('subscription.viewFaq') || 'View FAQ'}
+     </button>
           </div>
         </div>
       </div>

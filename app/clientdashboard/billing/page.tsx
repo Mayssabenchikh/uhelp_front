@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { API_BASE, getStoredToken } from "@/lib/utils";
 import { toast } from "react-hot-toast";
-import { Search, Download, CreditCard, Eye, X, FileText, Calendar, DollarSign,Coins } from "lucide-react";
+import { Search, Download, CreditCard, Eye, X, FileText, Calendar, DollarSign, Coins } from "lucide-react";
+import { useTranslation } from 'react-i18next'
 
 interface Payment {
   id: number;
@@ -20,6 +21,7 @@ interface Payment {
 }
 
 export default function BillingPage() {
+  const { t } = useTranslation()
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loadingIds, setLoadingIds] = useState<number[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -133,12 +135,22 @@ export default function BillingPage() {
   };
 
   const getStatusBadge = (status: string) => {
+    // normalize incoming status to be case-insensitive
+    const key = String(status ?? '').toLowerCase();
     const statusConfig = {
       pending: "bg-yellow-100 text-yellow-800 border-yellow-200",
       completed: "bg-green-100 text-green-800 border-green-200",
       failed: "bg-red-100 text-red-800 border-red-200"
     };
-    return statusConfig[status as keyof typeof statusConfig] || "bg-gray-100 text-gray-800 border-gray-200";
+    return statusConfig[key as keyof typeof statusConfig] || "bg-gray-100 text-gray-800 border-gray-200";
+  };
+  
+  // Format status label with translation fallback; normalizes status key
+  const formatStatusLabel = (status: string | undefined | null) => {
+    const key = String(status ?? '').toLowerCase();
+    const translated = t(`billing.status_${key}`);
+    if (translated && translated !== `billing.status_${key}`) return translated;
+    return key ? key.charAt(0).toUpperCase() + key.slice(1) : '';
   };
 
   return (
@@ -150,8 +162,8 @@ export default function BillingPage() {
             <CreditCard className="w-8 h-8 text-cyan-600" />
           </div>
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">Payment History</h2>
-            <p className="text-gray-600">Manage your payments and download invoices</p>
+            <h2 className="text-2xl font-bold text-gray-900">{t('billing.paymentHistory') || 'Payment History'}</h2>
+            <p className="text-gray-600">{t('billing.managePayments') || 'Manage your payments and download invoices'}</p>
           </div>
         </div>
       </div>
@@ -163,7 +175,7 @@ export default function BillingPage() {
             <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
             <input
               type="text"
-              placeholder="Search by plan, status, or amount..."
+              placeholder={t('billing.searchPlaceholder') || 'Search by plan, status, or amount...'}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all duration-200 text-gray-900 placeholder-gray-500"
@@ -175,8 +187,8 @@ export default function BillingPage() {
               onClick={handleSearch}
               className="px-6 py-3 bg-gradient-to-r from-cyan-600 to-cyan-700 text-white rounded-xl hover:from-cyan-700 hover:to-cyan-800 transition-all duration-200 font-medium shadow-sm hover:shadow-md"
             >
-              Search
-            </button>
+              {t('actions.search') || 'Search'}
+             </button>
             {searchTerm && (
               <button
                 onClick={() => {
@@ -209,8 +221,8 @@ export default function BillingPage() {
             <h3 className="text-xl font-semibold text-gray-900 mb-2">No payments found</h3>
             <p className="text-gray-500 max-w-md">
               {searchTerm 
-                ? "Try adjusting your search criteria to find what you're looking for." 
-                : "You don't have any payment records yet. Your future transactions will appear here."
+                ? (t('billing.noResultsSuggestion') || "Try adjusting your search criteria to find what you're looking for.") 
+                : (t('billing.noPayments') || "You don't have any payment records yet. Your future transactions will appear here.")
               }
             </p>
           </div>
@@ -219,14 +231,16 @@ export default function BillingPage() {
             <table className="w-full">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
-                  <th className="text-left py-4 px-6 font-semibold text-gray-900">Plan</th>
-                  <th className="text-center py-4 px-6 font-semibold text-gray-900">Amount</th>
-                  <th className="text-center py-4 px-6 font-semibold text-gray-900">Status</th>
-                  <th className="text-center py-4 px-6 font-semibold text-gray-900">Actions</th>
+                  <th className="text-left py-4 px-6 font-semibold text-gray-900">{t('billing.plan') || 'Plan'}</th>
+                  <th className="text-center py-4 px-6 font-semibold text-gray-900">{t('billing.amount') || 'Amount'}</th>
+                  <th className="text-center py-4 px-6 font-semibold text-gray-900">{t('billing.status') || 'Status'}</th>
+                  <th className="text-center py-4 px-6 font-semibold text-gray-900">{t('billing.actions') || 'Actions'}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {payments.map((pay) => (
+                {payments.map((pay) => {
+                  const statusKey = String(pay.status ?? '').toLowerCase();
+                  return (
                   <tr key={pay.id} className="hover:bg-gray-50 transition-colors duration-150">
                     <td className="py-4 px-6">
                       <div className="flex items-center gap-3">
@@ -234,7 +248,7 @@ export default function BillingPage() {
                           <Calendar className="w-4 h-4 text-cyan-600" />
                         </div>
                         <span className="font-medium text-gray-900">
-                          {pay.subscription?.plan?.name || "N/A"}
+                          {pay.subscription?.plan?.name || (t('billing.na') || 'N/A')}
                         </span>
                       </div>
                     </td>
@@ -247,9 +261,9 @@ export default function BillingPage() {
                       </div>
                     </td>
                     <td className="py-4 px-6 text-center">
-                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${getStatusBadge(pay.status)}`}>
-                        {pay.status.charAt(0).toUpperCase() + pay.status.slice(1)}
-                      </span>
+                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${getStatusBadge(statusKey)}`}>
+                        {formatStatusLabel(statusKey)}
+                       </span>
                     </td>
                     <td className="py-4 px-6">
                       <div className="flex items-center justify-center gap-2">
@@ -258,8 +272,8 @@ export default function BillingPage() {
                           className="inline-flex items-center gap-2 px-3 py-2 bg-cyan-50 text-cyan-600 rounded-lg hover:bg-cyan-100 transition-colors duration-200 text-sm font-medium"
                         >
                           <Eye className="w-4 h-4" />
-                          Details
-                        </button>
+                          {t('actions.details') || 'Details'}
+                         </button>
 
                         {pay.status === "completed" && (
                           <button
@@ -267,8 +281,8 @@ export default function BillingPage() {
                             className="inline-flex items-center gap-2 px-3 py-2 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-colors duration-200 text-sm font-medium"
                           >
                             <Download className="w-4 h-4" />
-                            Invoice
-                          </button>
+                            {t('billing.invoice') || 'Invoice'}
+                           </button>
                         )}
                         
                         {pay.status === "pending" && (
@@ -280,25 +294,25 @@ export default function BillingPage() {
                             {loadingIds.includes(pay.id) ? (
                               <>
                                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                                Processing
-                              </>
+                                {t('actions.processing') || 'Processing'}
+                               </>
                             ) : (
-                              <>
-                                <CreditCard className="w-4 h-4" />
-                                Pay Now
-                              </>
-                            )}
-                          </button>
+                               <>
+                                 <CreditCard className="w-4 h-4" />
+                                {t('billing.payNow') || 'Pay Now'}
+                               </>
+                             )}
+                           </button>
                         )}
                       </div>
                     </td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+                )})}
+               </tbody>
+             </table>
+           </div>
+         )}
+       </div>
 
       {/* Enhanced Modal */}
       {showModal && selectedPayment && (
@@ -339,8 +353,8 @@ export default function BillingPage() {
                 
                 <div className="flex justify-between items-center py-3 border-b border-gray-100">
                   <span className="text-gray-600 font-medium">Status</span>
-                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${getStatusBadge(selectedPayment.status)}`}>
-                    {selectedPayment.status.charAt(0).toUpperCase() + selectedPayment.status.slice(1)}
+                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${getStatusBadge(String(selectedPayment.status).toLowerCase())}`}>
+                    {formatStatusLabel(String(selectedPayment.status).toLowerCase())}
                   </span>
                 </div>
                 

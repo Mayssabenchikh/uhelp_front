@@ -5,6 +5,7 @@ import { chatService } from '@/services/chatService'
 import { Conversation, ChatMessage } from '@/types'
 import { getEcho, disconnectEcho } from '@/lib/echo'
 import { useAppContext } from '@/context/Context'
+import { useTranslation } from 'react-i18next'
 
 export default function LiveChatPage() {
   const [conversations, setConversations] = useState<Conversation[]>([])
@@ -16,15 +17,17 @@ export default function LiveChatPage() {
   const [error, setError] = useState<string | null>(null)
   const [quickResponses, setQuickResponses] = useState<string[]>([])
   const [aiGenerating, setAiGenerating] = useState<boolean>(false)
+  const [aiError, setAiError] = useState<string | null>(null)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const channelRef = useRef<any>(null)
   const { user } = useAppContext()
+  const { t } = useTranslation()
 
   useEffect(() => {
     if (!user?.id) return
     loadConversations()
-    loadQuickResponses()
+    // Removed loadQuickResponses() - now only loaded when user clicks the generate button
     return () => {
       try { if (channelRef.current) channelRef.current.unsubscribe() } catch {}
       disconnectEcho()
@@ -110,6 +113,7 @@ export default function LiveChatPage() {
 
   const loadQuickResponses = async () => {
     try {
+      setAiError(null)
       const res = await chatService.fetchQuickResponses()
       const list = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : (res ?? []))
       const mapped = (list as any[]).map((q: any) => (typeof q === 'string' ? q : (q.content ?? q.body ?? q.text ?? q.title ?? String(q))))
@@ -117,76 +121,269 @@ export default function LiveChatPage() {
     } catch (e) {
       console.error('Failed to load quick responses', e)
       setQuickResponses([])
+      setAiError('Error loading quick responses')
     }
   }
 
   // helper: parse various responses into string[]
   function parseAiResponseToList(res: any): string[] {
     if (!res) return []
-    if (Array.isArray(res)) return res.map((i: any) => (typeof i === 'string' ? i : (i.text ?? i.content ?? String(i)))).filter(Boolean)
-    if (Array.isArray(res?.suggestions)) return res.suggestions.map((i: any) => (typeof i === 'string' ? i : (i.text ?? i.content ?? String(i)))).filter(Boolean)
-    if (Array.isArray(res?.data)) return res.data.map((i: any) => (typeof i === 'string' ? i : (i.text ?? i.content ?? String(i)))).filter(Boolean)
-    if (typeof res === 'string') {
-      const lines = res.split(/\r?\n/).map((l: string) => l.replace(/^\d+[.)\-\s]+/, '').trim()).filter(Boolean)
-      return lines.length ? lines : [res]
+    
+    // Handle different response formats
+    let responses: string[] = []
+    
+    if (Array.isArray(res)) {
+      responses = res.map((i: any) => (typeof i === 'string' ? i : (i.text ?? i.content ?? i.question ?? String(i)))).filter(Boolean)
+    } else if (Array.isArray(res?.suggestions)) {
+      responses = res.suggestions.map((i: any) => (typeof i === 'string' ? i : (i.text ?? i.content ?? i.question ?? String(i)))).filter(Boolean)
+    } else if (Array.isArray(res?.data)) {
+      responses = res.data.map((i: any) => (typeof i === 'string' ? i : (i.text ?? i.content ?? i.question ?? String(i)))).filter(Boolean)
+    } else if (Array.isArray(res?.questions)) {
+      responses = res.questions.map((i: any) => (typeof i === 'string' ? i : (i.text ?? i.content ?? i.question ?? String(i)))).filter(Boolean)
+    } else if (typeof res === 'string') {
+      // Handle string responses - split by newlines and clean up
+      let text = res.trim()
+      
+      // Try different splitting strategies
+      let lines: string[] = []
+      
+      // First try: split by numbered list (1. 2. 3. etc)
+      if (text.match(/\d+\.\s/)) {
+        lines = text.split(/(?=\d+\.\s)/)
+          .filter(Boolean)
+          .map(l => l.replace(/^\d+\.\s*/, '').trim())
+      }
+      // Second try: split by bullet points or dashes
+      else if (text.match(/^[\-\*\+•]\s/m)) {
+        lines = text.split(/(?=^[\-\*\+•]\s)/m)
+          .filter(Boolean)
+          .map(l => l.replace(/^[\-\*\+•]\s*/, '').trim())
+      }
+      // Third try: split by double asterisks (common in AI responses)
+      else if (text.includes('**')) {
+        lines = text.split(/\*\*[^*]*\*\*/)
+          .filter(Boolean)
+          .map(l => l.trim())
+          .filter(l => l.length > 0)
+      }
+      // Fourth try: split by question marks followed by space or end
+      else if (text.includes('?')) {
+        lines = text.split(/\?\s+(?=[A-Z]|$)/)
+          .filter(Boolean)
+          .map(l => l.trim() + (l.trim().endsWith('?') ? '' : '?'))
+          .filter(l => l.length > 2)
+      }
+      // Fifth try: split by sentences that look like questions or statements
+      else if (text.match(/[.!?]\s+[A-Z]/)) {
+        lines = text.split(/(?<=[.!?])\s+(?=[A-Z])/)
+          .filter(Boolean)
+          .map(l => l.trim())
+      }
+      // Sixth try: split by newlines
+      else {
+        lines = text.split(/\r?\n/)
+          .filter(Boolean)
+          .map(l => l.trim())
+      }
+      
+      // Clean each line and filter meaningless content
+      lines = lines
+        .map((l: string) => l.replace(/^\d+[.)\-\s]+/, '').trim()) // Remove numbering
+        .map((l: string) => l.replace(/^\*\*|\*\*$/g, '').trim()) // Remove markdown bold
+        .map((l: string) => l.replace(/^["'`]|["'`]$/g, '').trim()) // Remove quotes
+        .filter(Boolean)
+        .filter((line: string) => {
+          // Filter out very short lines, pure numbers, or meaningless content
+          return line.length > 15 && 
+                 !line.match(/^[\d\s\-\.\)\(]*$/) && 
+                 !line.match(/^(here are|certainly|understood)/i) &&
+                 line.includes(' ') // Must contain at least one space (real sentence)
+        })
+      
+      responses = lines.length ? lines : [res]
+    } else if (typeof res?.suggestion === 'string') {
+      // Handle {success: true, suggestion: "..."} format
+      const text = res.suggestion.trim()
+      
+      // Try different splitting strategies for the suggestion text
+      let lines: string[] = []
+      
+      // First try: split by numbered list (1. 2. 3. etc)
+      if (text.match(/\d+\.\s/)) {
+        lines = text.split(/(?=\d+\.\s)/)
+          .filter(Boolean)
+          .map((l: string) => l.replace(/^\d+\.\s*/, '').trim())
+      }
+      // Second try: split by bullet points or dashes
+      else if (text.match(/^[\-\*\+•]\s/m)) {
+        lines = text.split(/(?=^[\-\*\+•]\s)/m)
+          .filter(Boolean)
+          .map((l: string) => l.replace(/^[\-\*\+•]\s*/, '').trim())
+      }
+      // Third try: split by question marks followed by space or end
+      else if (text.includes('?')) {
+        lines = text.split(/\?\s+(?=[A-Z]|$)/)
+          .filter(Boolean)
+          .map((l: string) => l.trim() + (l.trim().endsWith('?') ? '' : '?'))
+          .filter((l: string) => l.length > 2)
+      }
+      // Fourth try: split by semicolons (common in API responses)
+      else if (text.includes(';')) {
+        lines = text.split(/;\s*/)
+          .filter(Boolean)
+          .map((l: string) => l.trim())
+      }
+      // Fifth try: split by newlines
+      else {
+        lines = text.split(/\r?\n/)
+          .filter(Boolean)
+          .map((l: string) => l.trim())
+      }
+      
+      // Clean each line and filter meaningless content
+      lines = lines
+        .map((l: string) => l.replace(/^\d+[.)\-\s]+/, '').trim()) // Remove numbering
+        .map((l: string) => l.replace(/^\*\*|\*\*$/g, '').trim()) // Remove markdown bold
+        .map((l: string) => l.replace(/^["'`]|["'`]$/g, '').trim()) // Remove quotes
+        .filter(Boolean)
+        .filter((line: string) => {
+          // Filter out very short lines, pure numbers, or meaningless content
+          return line.length > 15 && 
+                 !line.match(/^[\d\s\-\.\)\(]*$/) && 
+                 !line.match(/^(here are|certainly|understood)/i) &&
+                 line.includes(' ') // Must contain at least one space (real sentence)
+        })
+      
+      responses = lines.length ? lines : [text]
+    } else if (Array.isArray(res?.suggestion)) {
+      responses = res.suggestion.map(String)
+    } else if (res?.response && typeof res.response === 'string') {
+      // Handle wrapped response
+      const lines = res.response.split(/\r?\n/)
+        .map((l: string) => l.replace(/^\d+[.)\-\s]+/, '').trim())
+        .filter(Boolean)
+        .filter((line: string) => line.length > 10)
+      responses = lines.length ? lines : [res.response]
+    } else {
+      // Last resort: try to stringify and parse
+      try {
+        const str = JSON.stringify(res)
+        if (str !== '{}' && str !== 'null') {
+          responses = [str]
+        }
+      } catch {
+        responses = []
+      }
     }
-    if (typeof res?.suggestion === 'string') return [res.suggestion]
-    if (Array.isArray(res?.suggestion)) return res.suggestion.map(String)
-    // fallback: stringify
-    return [JSON.stringify(res)].slice(0, 6)
+    
+    // Clean up responses: remove quotes, trim, and filter out empty/short ones
+    const cleanedResponses = responses
+      .map((r: string) => r.replace(/^["'`]|["'`]$/g, '').trim()) // Remove quotes
+      .map((r: string) => r.replace(/^\d+[.)\-\s]+/, '').trim()) // Remove any remaining numbering
+      .filter((r: string) => r.length > 10 && !r.match(/^[\d\s\-\.\)\(]*$/)) // Filter meaningful content
+      .slice(0, 6) // Limit to 6 responses
+    
+    // Remove duplicates and ensure each response is unique
+    const uniqueResponses = Array.from(new Set(cleanedResponses))
+    
+    return uniqueResponses
   }
 
   // client-side timeout wrapper (non-abortive) + retry
-  async function generateAIQuickResponses(language = 'fr') {
+  async function generateAIQuickResponses(language = 'en') {
     if (!selectedConversation) return
     setAiGenerating(true)
-    const prompt = 'Provide 6 short canned questions for help desk'
-    const timeoutMs = 8000 // client-side timeout (ms)
+    setAiError(null)
+    
+    // Add more context and variety to the prompt
+    const prompts = [
+      'Generate exactly 6 separate customer service questions in English. Format each question on a new line, starting with a number. Example:\n1. My internet is not working\n2. How can I reset my password?\n3. My bill seems incorrect',
+      'Create 6 distinct help desk questions in English, each on a separate line numbered 1-6. Focus on technical issues, billing, and account problems.',
+      'Provide 6 different customer support questions in English. Each question should be on its own line and numbered (1. 2. 3. etc). Cover topics like troubleshooting, passwords, and billing.',
+      'Generate 6 unique customer service questions in English. Format as a numbered list with each question on a new line. Include technical support, account help, and service issues.'
+    ]
+    
+    const randomPrompt = prompts[Math.floor(Math.random() * prompts.length)]
+    const timeoutMs = 15000 // increased timeout
     const retries = 1
 
     async function tryOnce(): Promise<boolean> {
       try {
-        // race chatService call with a timeout to fail fast on client
-        const p = chatService.generateQuickResponses(prompt, language)
-        const timed = new Promise((_, reject) => {
-          const t = window.setTimeout(() => {
-            clearTimeout(t)
-            reject(new Error('Client timeout'))
-          }, timeoutMs)
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Request timeout')), timeoutMs)
         })
-        // If chatService.generateQuickResponses itself times out it will throw; we only use timed race to fail earlier if desired
-        const res = await Promise.race([p, timed])
+
+        const apiPromise = chatService.generateQuickResponses(randomPrompt, language)
+        
+        const res = await Promise.race([apiPromise, timeoutPromise])
+        
+        // Debug: log the raw response to understand its format
+        console.log('Raw AI response:', res)
+        console.log('Response type:', typeof res)
+        
         const list = parseAiResponseToList(res)
-        if (list.length === 0) throw new Error('No suggestions returned')
-        setQuickResponses(list.slice(0, 8))
+        console.log('Parsed list:', list)
+        
+        if (list.length === 0) {
+          throw new Error('No valid responses generated')
+        }
+        
+        // Filter out duplicates and ensure we have unique responses
+        const uniqueResponses = Array.from(new Set(list)).slice(0, 6)
+        setQuickResponses(uniqueResponses)
+        setAiError(null)
         return true
-      } catch (err) {
-        console.error('AI quick responses generation failed', err)
+      } catch (err: any) {
+        if (err.message.includes('timeout')) {
+          console.warn('AI quick responses: Request timed out')
+          setAiError('Request timeout - AI service is taking too long to respond')
+        } else {
+          console.error('AI quick responses generation failed', err)
+          setAiError('Error generating AI responses: ' + err.message)
+        }
         return false
       }
     }
 
     let ok = await tryOnce()
     if (!ok && retries > 0) {
-      // small backoff then retry
-      await new Promise(r => setTimeout(r, 500))
+      // small backoff then retry with a different prompt
+      await new Promise(r => setTimeout(r, 1500))
       ok = await tryOnce()
     }
 
     if (!ok) {
-      // fallback: preserve existing if present, otherwise set defaults
-      if (!quickResponses || quickResponses.length === 0) {
-        setQuickResponses([
+      // Use more varied fallback responses
+      const fallbackSets = [
+        [
           'I have a connection problem',
           'How can I reset my password?',
           'My bill seems incorrect',
           'How does this feature work?',
           'I need help with my account',
           'Can someone call me back?'
-        ])
-      }
-      // Optional: surface a lightweight message to the agent
-      // console.warn('AI quick responses: using fallback canned replies.')
+        ],
+        [
+          'My internet is not working',
+          'I forgot my login credentials',
+          'There are unexpected charges on my bill',
+          'How do I update my payment method?',
+          'I want to cancel my subscription',
+          'When will a technician visit?'
+        ],
+        [
+          'The service is very slow today',
+          'I cannot access my account',
+          'Why was I charged twice?',
+          'How do I upgrade my plan?',
+          'I need technical assistance',
+          'What are your business hours?'
+        ]
+      ]
+      
+      const randomFallback = fallbackSets[Math.floor(Math.random() * fallbackSets.length)]
+      setQuickResponses(randomFallback)
+      console.warn('AI quick responses: using fallback canned replies.')
     }
 
     setAiGenerating(false)
@@ -207,8 +404,12 @@ export default function LiveChatPage() {
     }
   }
 
-  const sendMessage = async () => {
-    if (!selectedConversation || (!newMessage.trim() && files.length === 0)) return
+  const sendMessage = async (overrideText?: string, overrideFiles?: File[]) => {
+    const messageToSend = overrideText !== undefined ? overrideText : newMessage
+    const filesToSend = overrideFiles ?? files
+    if (!selectedConversation || (!messageToSend.trim() && filesToSend.length === 0)) return
+
+    const conversationId = selectedConversation.id
 
     setLoading(true)
 
@@ -216,21 +417,22 @@ export default function LiveChatPage() {
     const tempId = Date.now()
     const optimistic: ChatMessage = {
       id: tempId,
-      conversation_id: selectedConversation.id,
+      conversation_id: conversationId,
       user_id: user?.id ?? 0,
       user: { id: user?.id ?? 0, name: user?.name ?? 'You' },
-      message: newMessage,
+      message: messageToSend,
       attachments: [],
       created_at: new Date().toISOString(),
     }
     setMessages((prev) => [...prev, optimistic])
 
     try {
-      await chatService.sendMessage(selectedConversation.id, newMessage, files)
-      setNewMessage('')
-      setFiles([])
+      await chatService.sendMessage(conversationId, messageToSend, filesToSend)
+      // clear only the controlled inputs when caller didn't provide overrides
+      if (overrideText === undefined) setNewMessage('')
+      if (overrideFiles === undefined) setFiles([])
       // ensure we have server-confirmed messages
-      await loadMessages(selectedConversation.id)
+      await loadMessages(conversationId)
     } catch (err: any) {
       // rollback
       setMessages((prev) => prev.filter(m => m.id !== tempId))
@@ -278,10 +480,10 @@ export default function LiveChatPage() {
   }
 
   const handleQuickResponseSend = async (text: string) => {
-    // insert text and immediately send it as a quick canned reply
+    // send quick canned reply immediately without relying on state update timing
+    // setNewMessage so UI reflects it, but call sendMessage with override to avoid race
     setNewMessage(text)
-    // small delay to allow React state to update before sending
-    setTimeout(() => { void sendMessage() }, 50)
+    void sendMessage(text, [])
   }
 
   return (
@@ -291,9 +493,9 @@ export default function LiveChatPage() {
         <div className="w-1/4 border border-slate-200/60 rounded-2xl overflow-hidden bg-white/80 backdrop-blur-sm shadow-lg hover:shadow-xl transition-all duration-300">
           <div className="p-6 border-b border-slate-200/60 bg-gradient-to-r from-cyan-50 to-blue-50">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-bold text-slate-900">💬 Conversations</h3>
+              <h3 className="text-lg font-bold text-slate-900">💬 {t('chat.conversations') || 'Conversations'}</h3>
               <a href="/clientdashboard/live-chat/create" className="text-sm px-4 py-2 rounded-xl bg-gradient-to-r from-cyan-600 to-cyan-700 text-white hover:from-cyan-700 hover:to-cyan-800 font-medium shadow-lg shadow-cyan-500/25 hover:shadow-xl hover:shadow-cyan-500/30 transition-all duration-200">
-                ✨ New
+                {t('actions.new') || '✨ New'}
               </a>
             </div>
           </div>
@@ -313,7 +515,7 @@ export default function LiveChatPage() {
                     <div className="flex items-center gap-2">
                       <div className="w-3 h-3 bg-gradient-to-br from-cyan-400 to-cyan-600 rounded-full shadow-sm"></div>
                       <h4 className="font-semibold text-slate-900">
-                        {conversation.name || `Conversation ${conversation.id}`}
+                        {conversation.name || `${t('chat.conversation') || 'Conversation'} ${conversation.id}`}
                       </h4>
                     </div>
                     {conversation.last_message && (
@@ -346,9 +548,9 @@ export default function LiveChatPage() {
                   </div>
                   <div>
                     <h3 className="text-lg font-bold text-slate-900">
-                      {selectedConversation.name || `Conversation ${selectedConversation.id}`}
+                      {selectedConversation.name || `${t('chat.conversation') || 'Conversation'} ${selectedConversation.id}`}
                     </h3>
-                    <p className="text-sm text-slate-600">Active conversation</p>
+                    <p className="text-sm text-slate-600">{t('chat.activeConversation') || 'Active conversation'}</p>
                   </div>
                 </div>
               </div>
@@ -417,40 +619,30 @@ export default function LiveChatPage() {
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
                     onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void sendMessage() } }}
-                    placeholder="Type your message..."
-                    className="flex-1 px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 bg-white/70 backdrop-blur-sm transition-all duration-200 hover:bg-white/80"
+                    placeholder={t('chat.typeMessage') || 'Type a message...'}
+                    className="flex-1 px-4 py-3 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-cyan-500/40"
                   />
-                  <input
-                    type="file"
-                    multiple
-                    onChange={handleFileChange}
-                    className="hidden"
-                    id="file-upload"
-                  />
-                  <label
-                    htmlFor="file-upload"
-                    className="px-4 py-3 bg-slate-100/80 text-slate-700 rounded-xl cursor-pointer hover:bg-slate-200/80 backdrop-blur-sm transition-all duration-200 font-medium border border-slate-200"
-                  >
-                    📎
-                  </label>
-                  <button
-                    onClick={sendMessage}
-                    disabled={loading || (!newMessage.trim() && files.length === 0)}
-                    className="px-6 py-3 bg-gradient-to-r from-cyan-600 to-cyan-700 text-white rounded-xl hover:from-cyan-700 hover:to-cyan-800 disabled:opacity-50 font-medium shadow-lg shadow-cyan-500/25 hover:shadow-xl hover:shadow-cyan-500/30 transition-all duration-200"
-                  >
-                    {loading ? '⏳ Sending...' : '🚀 Send'}
-                  </button>
+                  <input type="file" className="hidden" id="file-upload" onChange={handleFileChange} />
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => void sendMessage()}
+                      disabled={loading || (!newMessage.trim() && files.length === 0)}
+                      className="px-6 py-3 bg-gradient-to-r from-cyan-600 to-cyan-700 text-white rounded-xl hover:from-cyan-700 hover:to-cyan-800 disabled:opacity-50 font-medium shadow-lg shadow-cyan-500/25 hover:shadow-xl hover:shadow-cyan-500/30 transition-all duration-200"
+                    >
+                      {loading ? '⏳ Sending...' : '🚀 Send'}
+                    </button>
+                  </div>
                 </div>
               </div>
             </>
           ) : (
-            <div className="flex-1 flex items-center justify-center bg-gradient-to-br from-slate-50/30 to-cyan-50/20">
-              <div className="text-center">
-                <div className="w-20 h-20 bg-gradient-to-br from-cyan-100 to-cyan-200 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-                  <span className="text-3xl">💬</span>
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-center text-gray-500">
+                <div className="text-4xl mb-2">💬</div>
+                <div className="text-lg font-medium">{t('chat.selectConversation') || 'Select a conversation or create a new one'}</div>
+                <div className="mt-4">
+                  <a href="/clientdashboard/live-chat/create" className="px-4 py-2 bg-cyan-600 text-white rounded-xl">{t('actions.createNew') || 'Create new'}</a>
                 </div>
-                <p className="text-slate-500 font-medium">Select a conversation to start chatting</p>
-                <p className="text-sm text-slate-400 mt-1">Choose from your active conversations</p>
               </div>
             </div>
           )}
@@ -464,35 +656,87 @@ export default function LiveChatPage() {
               Quick Responses
             </h4>
             <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => void generateAIQuickResponses()}
-                  disabled={aiGenerating}
-                  className={`text-xs px-3 py-1 rounded ${aiGenerating ? 'bg-gray-200 text-gray-500' : 'bg-cyan-600 text-white hover:bg-cyan-700'} transition-colors`}
-                >
-                  {aiGenerating ? 'Generating...' : 'Generate (AI)'}
-                </button>
-                <button onClick={loadQuickResponses} className="text-xs px-3 py-1 rounded bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors">Reload</button>
-              </div>
+              <button
+                onClick={() => void generateAIQuickResponses()}
+                disabled={aiGenerating}
+                className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-all duration-200 ${
+                  aiGenerating 
+                    ? 'bg-gray-200 text-gray-500 cursor-not-allowed' 
+                    : 'bg-gradient-to-r from-cyan-600 to-cyan-700 text-white hover:from-cyan-700 hover:to-cyan-800 shadow-sm hover:shadow-md'
+                }`}
+              >
+                {aiGenerating ? (
+                  <span className="flex items-center gap-1">
+                    <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 0 0 14 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    Generating...
+                  </span>
+                ) : (
+                  '✨ Generate New (AI)'
+                )}
+              </button>
+              <span className="text-xs text-gray-500">
+                {quickResponses.length} responses
+              </span>
             </div>
+            
+            {aiGenerating && (
+              <div className="mb-3 p-3 bg-cyan-50 border border-cyan-200 rounded-lg">
+                <p className="text-xs text-cyan-700 flex items-center gap-2">
+                  <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 0 0 14 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  Generating intelligent responses...
+                </p>
+              </div>
+            )}
+
+            {aiError && (
+              <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-xs text-red-700 flex items-center gap-2">
+                  <span>⚠️</span>
+                  {aiError}
+                </p>
+                <button 
+                  onClick={() => setAiError(null)}
+                  className="text-xs text-red-600 hover:text-red-800 mt-1 underline"
+                >
+                  Hide
+                </button>
+              </div>
+            )}
+
             <div className="grid grid-cols-1 gap-3">
-              {(quickResponses.length ? quickResponses : ['I have a connection problem','How can I reset my password?','My bill seems incorrect','How does this feature work?']).map((s, i) => (
-                <div key={i} className="flex items-center justify-between gap-2">
-                  <button
-                    onClick={() => handleQuickResponseClick(s)}
-                    className="text-left w-full px-4 py-3 bg-gradient-to-r from-slate-50 to-cyan-50/50 border border-slate-200/60 rounded-xl hover:from-cyan-50 hover:to-cyan-100/70 hover:border-cyan-300 transition-all duration-200 text-sm font-medium hover:shadow-md"
-                  >
-                    💡 {s}
-                  </button>
-                  <button
-                    onClick={() => void handleQuickResponseSend(s)}
-                    title="Send quick reply"
-                    className="ml-2 inline-flex items-center justify-center px-3 py-2 rounded-md bg-cyan-600 text-white text-xs hover:bg-cyan-700 transition-colors"
-                  >
-                    Send
-                  </button>
+              {quickResponses.length > 0 ? (
+                quickResponses.map((s, i) => (
+                  <div key={`${i}-${s.substring(0,10)}`} className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleQuickResponseClick(s)}
+                      className="text-left flex-1 px-4 py-3 bg-gradient-to-r from-slate-50 to-cyan-50/50 border border-slate-200/60 rounded-xl hover:from-cyan-50 hover:to-cyan-100/70 hover:border-cyan-300 transition-all duration-200 text-sm font-medium hover:shadow-md"
+                      title="Click to edit this response"
+                    >
+                      💡 {s}
+                    </button>
+                    <button
+                      onClick={() => void handleQuickResponseSend(s)}
+                      title="Send this response immediately"
+                      className="flex-shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-lg bg-cyan-600 text-white text-xs hover:bg-cyan-700 transition-colors shadow-sm hover:shadow-md"
+                    >
+                      📤
+                    </button>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8">
+                  <div className="text-gray-400 text-sm mb-2">✨</div>
+                  <p className="text-xs text-gray-500">
+                    Click "Generate New (AI)" to create quick responses
+                  </p>
                 </div>
-              ))}
+              )}
             </div>
           </div>
 

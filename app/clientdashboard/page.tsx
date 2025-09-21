@@ -259,7 +259,7 @@ export default function ClientDashboardPage() {
                 <Link href="/clientdashboard/tickets" className="block w-full">
                   <div className="bg-white border-2 border-cyan-200 p-3 md:p-4 rounded-xl hover:border-cyan-300 hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5">
                     <div className="flex items-center justify-between">
-                      <span className="font-semibold text-cyan-700 text-sm md:text-base">{t('client.viewAllTickets')}</span>
+                      <span className="font-semibold text-cyan-700 text-sm md:text-base">{t('dashboard.viewAllTickets')}</span>
                       <ArrowRight className="w-4 h-4 md:w-5 md:h-5 text-cyan-600 flex-shrink-0" />
                     </div>
                   </div>

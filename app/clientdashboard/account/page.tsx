@@ -6,9 +6,11 @@ import { useAppContext } from '@/context/Context'
 import { API_BASE, getStoredToken } from '@/lib/utils'
 import toast from 'react-hot-toast'
 import { useRouter } from 'next/navigation'
+import { useTranslation } from 'react-i18next'
 
 export default function ProfilePage() {
   const { user } = useAppContext()
+  const { t } = useTranslation()
   const router = useRouter()
   const [isMounted, setIsMounted] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
@@ -64,20 +66,20 @@ const handleSubmit = async (e: React.FormEvent) => {
     try {
       // client-side validation
       if (formData.password && formData.password !== formData.confirmPassword) {
-        setMessage('Passwords do not match')
+        setMessage(t('account.passwordsDoNotMatch') || 'Passwords do not match')
         setIsLoading(false)
         return
       }
 
       if (!user || !user.id) {
-        setMessage('User not loaded')
+        setMessage(t('account.userNotLoaded') || 'User not loaded')
         setIsLoading(false)
         return
       }
 
       const token = getStoredToken()
       if (!token) {
-        toast.error('No token found — please login again')
+        toast.error(t('account.noToken') || 'No token found — please login again')
         setIsLoading(false)
         return
       }
@@ -124,7 +126,7 @@ const handleSubmit = async (e: React.FormEvent) => {
       // simplest: reload current route so context picks updated user
       router.refresh()
       // optional: keep user on page and show success message
-      setMessage('Profile updated successfully!')
+      setMessage(t('account.profileUpdated') || 'Profile updated successfully!')
       setFormData(prev => ({ ...prev, password: '', confirmPassword: '' }))
     } catch (err: any) {
       console.error('Profile update error', err)
@@ -138,7 +140,7 @@ const handleSubmit = async (e: React.FormEvent) => {
   if (!isMounted) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-gray-500">Loading profile...</div>
+        <div className="text-gray-500">{t('account.loadingProfile') || 'Loading profile...'}</div>
       </div>
     )
   }
@@ -181,9 +183,9 @@ const handleSubmit = async (e: React.FormEvent) => {
               />
             </div>
             <div className="text-white">
-              <h2 className="text-2xl font-bold">{user?.name || 'User Name'}</h2>
-              <p className="text-cyan-100">{user?.email || 'user@example.com'}</p>
-              <p className="text-cyan-100 text-sm">{user?.role || 'Client'}</p>
+              <h2 className="text-2xl font-bold">{user?.name || (t('account.userName') || 'User Name')}</h2>
+              <p className="text-cyan-100">{user?.email || (t('account.userEmail') || 'user@example.com')}</p>
+              <p className="text-cyan-100 text-sm">{user?.role || t('common.client') || 'Client'}</p>
             </div>
           </div>
         </div>
@@ -200,7 +202,7 @@ const handleSubmit = async (e: React.FormEvent) => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label htmlFor="fullName" className="block text-sm font-medium text-gray-700 mb-2">
-                  <UserIcon className="w-4 h-4 inline mr-2" /> Full Name
+                  <UserIcon className="w-4 h-4 inline mr-2" /> {t('account.fullName') || 'Full Name'}
                 </label>
                 <input
                   type="text"
@@ -214,7 +216,7 @@ const handleSubmit = async (e: React.FormEvent) => {
 
               <div>
                 <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                  <Mail className="w-4 h-4 inline mr-2" /> Email
+                  <Mail className="w-4 h-4 inline mr-2" /> {t('account.email') || 'Email'}
                 </label>
                 <input
                   type="email"
@@ -228,7 +230,7 @@ const handleSubmit = async (e: React.FormEvent) => {
 
               <div>
                 <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
-                  <Phone className="w-4 h-4 inline mr-2" /> Phone
+                  <Phone className="w-4 h-4 inline mr-2" /> {t('account.phone') || 'Phone'}
                 </label>
                 <input
                   type="tel"
@@ -241,7 +243,7 @@ const handleSubmit = async (e: React.FormEvent) => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Role</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">{t('account.role') || 'Role'}</label>
                 <input
                   type="text"
                   value={user?.role || 'Client'}
@@ -253,11 +255,11 @@ const handleSubmit = async (e: React.FormEvent) => {
 
             {/* Password Section */}
             <div className="border-t border-gray-200 pt-6">
-              <h3 className="text-lg font-medium text-gray-800 mb-4">Change Password</h3>
+              <h3 className="text-lg font-medium text-gray-800 mb-4">{t('account.changePassword') || 'Change Password'}</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-                    <Lock className="w-4 h-4 inline mr-2" /> New Password
+                    <Lock className="w-4 h-4 inline mr-2" /> {t('account.newPassword') || 'New Password'}
                   </label>
                   <input
                     type="password"
@@ -266,13 +268,13 @@ const handleSubmit = async (e: React.FormEvent) => {
                     value={formData.password}
                     onChange={handleInputChange}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition-colors"
-                    placeholder="Leave blank to keep current"
+                    placeholder={t('account.leaveBlank') || 'Leave blank to keep current'}
                   />
                 </div>
 
                 <div>
                   <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
-                    <Lock className="w-4 h-4 inline mr-2" /> Confirm Password
+                    <Lock className="w-4 h-4 inline mr-2" /> {t('account.confirmPassword') || 'Confirm Password'}
                   </label>
                   <input
                     type="password"
@@ -293,7 +295,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                 disabled={isLoading}
                 className="px-6 py-3 bg-cyan-500 text-white rounded-lg hover:bg-cyan-600 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isLoading ? 'Saving...' : 'Save Changes'}
+                {isLoading ? (t('actions.saving') || 'Saving...') : (t('actions.saveChanges') || 'Save Changes')}
               </button>
             </div>
           </form>

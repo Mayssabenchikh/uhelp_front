@@ -5,8 +5,10 @@ import { useQuery } from '@tanstack/react-query'
 import { ticketService } from '@/services/api'
 import { Ticket } from '@/types'
 import Link from 'next/link'
+import { useTranslation } from 'react-i18next'
 
 export default function TicketsPage() {
+  const { t } = useTranslation()
   const [tickets, setTickets] = useState<Ticket[]>([])
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
@@ -187,7 +189,7 @@ export default function TicketsPage() {
       <div className="flex items-center justify-center min-h-96">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading tickets...</p>
+          <p className="text-gray-600">{t('tickets.loading') || 'Loading tickets...'}</p>
         </div>
       </div>
     )
@@ -208,14 +210,14 @@ export default function TicketsPage() {
       <div className="bg-gradient-to-r from-cyan-50 to-blue-50 rounded-2xl p-6 border border-cyan-100">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">My Tickets</h1>
-            <p className="text-gray-600 mt-1">Manage and track your support requests</p>
+            <h1 className="text-2xl font-bold text-gray-900">{t('tickets.myTickets') || 'My Tickets'}</h1>
+            <p className="text-gray-600 mt-1">{t('tickets.subtitle') || 'Manage and track your support requests'}</p>
           </div>
           <Link 
             href="/clientdashboard/tickets/new"
             className="bg-cyan-600 hover:bg-cyan-700 text-white px-6 py-3 rounded-xl font-medium transition-colors shadow-sm hover:shadow-md"
           >
-            + New Ticket
+            {t('tickets.newTicket') || '+ New Ticket'}
           </Link>
         </div>
 
@@ -223,23 +225,23 @@ export default function TicketsPage() {
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           <div className="bg-white/60 backdrop-blur-sm rounded-xl p-4 border border-white/20">
             <div className="text-2xl font-bold text-gray-900">{stats.total}</div>
-            <div className="text-sm text-gray-600">Total</div>
+            <div className="text-sm text-gray-600">{t('tickets.total') || 'Total'}</div>
           </div>
           <div className="bg-white/60 backdrop-blur-sm rounded-xl p-4 border border-white/20">
             <div className="text-2xl font-bold text-blue-600">{stats.open}</div>
-            <div className="text-sm text-gray-600">Open</div>
+            <div className="text-sm text-gray-600">{t('tickets.open') || 'Open'}</div>
           </div>
           <div className="bg-white/60 backdrop-blur-sm rounded-xl p-4 border border-white/20">
             <div className="text-2xl font-bold text-amber-600">{stats.pending}</div>
-            <div className="text-sm text-gray-600">Pending</div>
+            <div className="text-sm text-gray-600">{t('tickets.pending') || 'Pending'}</div>
           </div>
           <div className="bg-white/60 backdrop-blur-sm rounded-xl p-4 border border-white/20">
             <div className="text-2xl font-bold text-green-600">{stats.closed}</div>
-            <div className="text-sm text-gray-600">Closed</div>
+            <div className="text-sm text-gray-600">{t('tickets.closed') || 'Closed'}</div>
           </div>
           <div className="bg-white/60 backdrop-blur-sm rounded-xl p-4 border border-white/20">
             <div className="text-2xl font-bold text-red-600">{stats.high}</div>
-            <div className="text-sm text-gray-600">High Priority</div>
+            <div className="text-sm text-gray-600">{t('tickets.highPriority') || 'High Priority'}</div>
           </div>
         </div>
       </div>
@@ -257,7 +259,7 @@ export default function TicketsPage() {
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search by title, ID or description..."
+                placeholder={t('tickets.searchPlaceholder') || 'Search by title, ID or description...'}
                 className="block w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
               />
             </div>
@@ -268,7 +270,7 @@ export default function TicketsPage() {
               onChange={(e) => setStatus(e.target.value)}
               className="px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 bg-white"
             >
-              <option value="">All statuses</option>
+              <option value="">{t('tickets.allStatuses') || 'All statuses'}</option>
               <option value="open">🔵 Open</option>
               <option value="pending">⏳ Pending</option>
               <option value="resolved">✅ Resolved</option>
@@ -280,7 +282,7 @@ export default function TicketsPage() {
               onChange={(e) => setPriority(e.target.value)}
               className="px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 bg-white"
             >
-              <option value="">All priorities</option>
+              <option value="">{t('tickets.allPriorities') || 'All priorities'}</option>
               <option value="high">🔴 High</option>
               <option value="medium">🟡 Medium</option>
               <option value="low">⚪ Low</option>
@@ -291,7 +293,7 @@ export default function TicketsPage() {
                 onClick={clearFilters}
                 className="px-4 py-3 text-gray-600 hover:text-gray-800 hover:bg-gray-50 rounded-xl transition-colors"
               >
-                Clear
+                {t('actions.clear') || 'Clear'}
               </button>
             )}
           </div>
@@ -307,11 +309,11 @@ export default function TicketsPage() {
               }}
               className="px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 bg-white text-sm"
             >
-              <option value="created_at-desc">Newest first</option>
-              <option value="created_at-asc">Oldest first</option>
-              <option value="updated_at-desc">Recently updated</option>
-              <option value="priority-desc">High priority first</option>
-              <option value="status-asc">Status</option>
+              <option value="created_at-desc">{t('tickets.sort.newest') || 'Newest first'}</option>
+              <option value="created_at-asc">{t('tickets.sort.oldest') || 'Oldest first'}</option>
+              <option value="updated_at-desc">{t('tickets.sort.recentlyUpdated') || 'Recently updated'}</option>
+              <option value="priority-desc">{t('tickets.sort.highPriority') || 'High priority first'}</option>
+              <option value="status-asc">{t('tickets.sort.status') || 'Status'}</option>
             </select>
 
             <div className="flex border border-gray-200 rounded-xl overflow-hidden">
@@ -323,7 +325,7 @@ export default function TicketsPage() {
                     : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50 border-r border-gray-200'
                 }`}
               >
-                List
+                {t('actions.list') || 'List'}
               </button>
               <button
                 onClick={() => setViewMode('grid')}
@@ -333,7 +335,7 @@ export default function TicketsPage() {
                     : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
                 }`}
               >
-                Grid
+                {t('actions.grid') || 'Grid'}
               </button>
             </div>
           </div>
@@ -345,7 +347,7 @@ export default function TicketsPage() {
         <div className="p-6 border-b border-gray-100 bg-gray-50/50">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-semibold text-gray-900">
-              Tickets ({filtered.length})
+              {t('tickets.tickets') || 'Tickets'} ({filtered.length})
             </h3>
             {filtered.length !== tickets.length && (
               <span className="text-sm text-gray-500">
@@ -359,12 +361,12 @@ export default function TicketsPage() {
           <div className="p-12 text-center">
             <div className="text-6xl mb-4">🎫</div>
             <h3 className="text-lg font-medium text-gray-900 mb-2">
-              {tickets.length === 0 ? 'No tickets' : 'No results'}
+              {tickets.length === 0 ? (t('tickets.noTickets') || 'No tickets') : (t('tickets.noResults') || 'No results')}
             </h3>
             <p className="text-gray-600 mb-6">
               {tickets.length === 0 
-                ? 'You haven\'t created any support tickets yet.'
-                : 'No tickets match your search criteria.'
+                ? (t('tickets.noTicketsDesc') || "You haven't created any support tickets yet.")
+                : (t('tickets.noResultsDesc') || 'No tickets match your search criteria.')
               }
             </p>
             {tickets.length === 0 ? (
@@ -372,14 +374,14 @@ export default function TicketsPage() {
                 href="/clientdashboard/tickets/new"
                 className="inline-flex items-center px-6 py-3 bg-cyan-600 text-white rounded-xl hover:bg-cyan-700 transition-colors"
               >
-                Create my first ticket
+                {t('tickets.createFirst') || 'Create my first ticket'}
               </Link>
             ) : (
               <button
                 onClick={clearFilters}
                 className="inline-flex items-center px-6 py-3 bg-gray-600 text-white rounded-xl hover:bg-gray-700 transition-colors"
               >
-                Clear filters
+                {t('actions.clearFilters') || 'Clear filters'}
               </button>
             )}
           </div>

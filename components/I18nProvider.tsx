@@ -30,6 +30,10 @@ const resources = {
         subscription: 'Subscription',
         tickets: 'Tickets'
       },
+      // Reports (header subtitles / small texts for reports pages)
+      reports: {
+        viewMetrics: 'View and analyze key metrics across your helpdesk.'
+      },
       // Dashboard commun
       dashboard: {
         welcome: 'Welcome back, {{name}}!',
@@ -80,7 +84,18 @@ const resources = {
         newTicket: 'New Ticket',
         newConversation: 'New Conversation',
         new: 'New',
-        selectAgent: 'Select an agent'
+        selectAgent: 'Select an agent',
+        // Additional action keys used in clientdashboard
+        saving: 'Saving...',
+        saveChanges: 'Save Changes',
+        creating: 'Creating...',
+        details: 'Details',
+        processing: 'Processing',
+        clear: 'Clear',
+        list: 'List',
+        grid: 'Grid',
+        clearFilters: 'Clear filters',
+        createNew: 'Create new'
       },
       // Tickets
       tickets: {
@@ -112,7 +127,52 @@ const resources = {
         low: 'Low',
         medium: 'Medium',
         high: 'High',
-        urgent: 'Urgent'
+        urgent: 'Urgent',
+        // Additional keys used in client pages
+        unknownStatus: 'Unknown status',
+        unknownPriority: 'Unknown priority',
+        createNew: 'Create New Ticket',
+        createSubtitle: 'Fill in the details below to create a new support ticket',
+        createButton: 'Create Ticket',
+        title: 'Title',
+        titlePlaceholder: 'Enter a descriptive title for your ticket...',
+        categoryLabel: 'Category',
+        selectCategory: 'Select a category',
+        descriptionPlaceholder: 'Describe the issue or request in detail...',
+        priorityLevel: 'Priority Level',
+        initialStatus: 'Initial Status',
+        statusOpen: 'Open',
+        statusInProgress: 'In Progress',
+        statusResolved: 'Resolved',
+        statusClosed: 'Closed',
+        tipsTitle: '\uD83D\uDCA1 Tips for Better Support',
+        tip1: 'Be specific about the issue',
+        tip2: 'Include steps to reproduce',
+        tip3: 'Mention your environment',
+        tip4: 'Attach relevant screenshots',
+        noRecent: 'No recent tickets',
+        noRecentDesc: 'You do not have any recent tickets',
+        myTickets: 'My Tickets',
+        subtitle: 'Manage and track your support requests',
+        newTicket: '+ New Ticket',
+        total: 'Total',
+        highPriority: 'High Priority',
+        searchPlaceholder: 'Search by title, ID or description...',
+        allStatuses: 'All statuses',
+        allPriorities: 'All priorities',
+        sort: {
+          newest: 'Newest first',
+          oldest: 'Oldest first',
+          recentlyUpdated: 'Recently updated',
+          highPriority: 'High priority first',
+          status: 'Status'
+        },
+        tickets: 'Tickets',
+        noTickets: 'No tickets',
+        noResults: 'No results',
+        noTicketsDesc: "You haven't created any support tickets yet.",
+        noResultsDesc: 'No tickets match your search criteria.',
+        createFirst: 'Create my first ticket'
       },
       // Utilisateurs
       users: {
@@ -160,6 +220,7 @@ const resources = {
         typeReplyPlaceholder: 'Type your reply here...',
         sending: 'Sending...',
         sendReply: 'Send Reply',
+        enterMessageOrAttachment: 'Please enter a message or attach a file.',
         success: {
           saved: 'Successfully saved!',
           updated: 'Successfully updated!',
@@ -186,20 +247,85 @@ const resources = {
           retry: 'Retry'
         }
       },
-      // Agent Dashboard
-      agent: {
-        dashboard: 'Agent Dashboard',
-        totalResolved: 'Total resolved',
-        resolvedToday: 'Resolved today',
-        openTickets: 'Open tickets',
-        availableTickets: 'Available tickets',
-        priorityTickets: 'Priority Tickets',
-        urgent: 'urgent',
-        noUrgentTickets: 'No urgent tickets at the moment',
-        view: 'view',
-        availableTicketsBtn: 'Available Tickets',
-        myTicketsBtn: 'My Tickets',
-        newTicketBtn: 'New Ticket'
+      // Chat
+      chat: {
+        getInstantHelp: 'Get instant help from our support team.',
+        // Subtitle used in admin layout header for Live Chat
+        monitorAndJoin: 'Monitor ongoing conversations and join when needed.',
+        conversations: 'Conversations',
+        conversation: 'Conversation',
+        activeConversation: 'Active conversation',
+        typeMessage: 'Type a message...',
+        selectConversation: 'Select a conversation or create a new one'
+      },
+      // FAQ
+      faq: {
+        title: 'FAQ',
+        findQuickAnswers: 'Find quick answers to common questions.',
+        subtitle: "Find answers quickly — ask a question and we'll search the knowledge base.",
+        askTitle: 'Ask a question',
+        askDescription: "We search the knowledge base first. If no convincing match is found, an AI-generated response may be returned.",
+        placeholder: 'Type your question here...',
+        searchButton: 'Search',
+        clearButton: 'Clear',
+        sourceLabel: 'Source',
+        confidenceLabel: 'Confidence',
+        noAnswer: 'No precise answer found.',
+        languageLabel: 'Language',
+        loadingFaqs: 'Loading FAQs...',
+        noFaqsFound: 'No FAQs found'
+      },
+      // Billing
+      billing: {
+        manageInvoices: 'Manage your invoices and payment methods.',
+        paymentHistory: 'Payment History',
+        managePayments: 'Manage your payments and download invoices',
+        searchPlaceholder: 'Search by plan, status, or amount...',
+        noResultsSuggestion: "Try adjusting your search criteria to find what you're looking for.",
+        noPayments: "You don't have any payment records yet. Your future transactions will appear here.",
+        plan: 'Plan',
+        amount: 'Amount',
+        status: 'Status',
+        actions: 'Actions',
+        na: 'N/A',
+        invoice: 'Invoice',
+        payNow: 'Pay Now'
+      },
+      // Subscription
+      subscription: {
+        managePlan: 'Manage your subscription plan and features.',
+        loadingPlans: 'Loading subscription plans...',
+        noPlans: 'No subscription plans available',
+        checkBack: 'Please check back later for available plans.',
+        choosePlan: 'Choose Your Perfect Plan',
+        subtitle: 'Unlock powerful features and take your experience to the next level with our flexible subscription options.',
+        activeMessage: 'You currently have an active subscription. You can upgrade, downgrade, or cancel anytime.',
+        mostPopular: 'Most Popular',
+        currentPlan: 'Current Plan',
+        viewFaq: 'View FAQ'
+      },
+      // Account
+      account: {
+        updateInfo: 'Update your personal information and preferences.',
+        passwordsDoNotMatch: 'Passwords do not match',
+        userNotLoaded: 'User not loaded',
+        noToken: 'No token found — please login again',
+        profileUpdated: 'Profile updated successfully!',
+        loadingProfile: 'Loading profile...',
+        userName: 'User Name',
+        userEmail: 'user@example.com',
+        fullName: 'Full Name',
+        email: 'Email',
+        phone: 'Phone',
+        role: 'Role',
+        leaveBlank: 'Leave blank to keep current',
+        changePassword: 'Change Password',
+        newPassword: 'New Password',
+        confirmPassword: 'Confirm Password'
+      },
+      // Common
+      common: {
+        client: 'client'
       },
       // Client Dashboard
       client: {
@@ -215,29 +341,19 @@ const resources = {
         noRecentTickets: 'No recent tickets',
         checkTickets: 'Check your tickets page for all activity'
       },
-      // Chat
-      chat: {
-        getInstantHelp: 'Get instant help from our support team.'
-      },
-      // FAQ
-      faq: {
-        findQuickAnswers: 'Find quick answers to common questions.'
-      },
-      // Billing
-      billing: {
-        manageInvoices: 'Manage your invoices and payment methods.'
-      },
-      // Subscription
-      subscription: {
-        managePlan: 'Manage your subscription plan and features.'
-      },
-      // Account
-      account: {
-        updateInfo: 'Update your personal information and preferences.'
-      },
-      // Common
-      common: {
-        client: 'client'
+      // Agent dashboard translations
+      agent: {
+        totalResolved: 'Total resolved',
+        resolvedToday: 'Resolved today',
+        openTickets: 'Open tickets',
+        availableTickets: 'Available tickets',
+        availableTicketsBtn: 'Available Tickets',
+        myTicketsBtn: 'My Tickets',
+        newTicketBtn: 'New Ticket',
+        priorityTickets: 'Priority Tickets',
+        urgent: 'urgent',
+        noUrgentTickets: 'No urgent tickets at the moment',
+        view: 'View'
       }
     }
   },
@@ -264,6 +380,10 @@ const resources = {
         subscription: 'Abonnement',
         tickets: 'Tickets'
       },
+      // Reports (header subtitles / small texts for reports pages)
+      reports: {
+        viewMetrics: 'Voir et analyser les métriques clés de votre service d\'assistance.'
+      },
       // Dashboard commun
       dashboard: {
         welcome: 'Bon retour, {{name}} !',
@@ -286,7 +406,7 @@ const resources = {
         urgent: 'urgent',
         noUrgentTickets: 'Aucun ticket urgent pour le moment',
         quickActions: 'Actions rapides',
-        createNewTicket: 'Créer un nouveau ticket',
+        createNewTicket: 'Créer un Nouveau ticket',
         viewAllTickets: 'Voir tous les tickets',
         manageDeletedTickets: 'Gérer les tickets supprimés - restaurer ou supprimer définitivement'
       },
@@ -314,7 +434,18 @@ const resources = {
         newTicket: 'Nouveau ticket',
         newConversation: 'Nouvelle conversation',
         new: 'Nouveau',
-        selectAgent: 'Sélectionner un agent'
+        selectAgent: 'Sélectionner un agent',
+        // Additional action keys
+        saving: 'Enregistrement...',
+        saveChanges: 'Enregistrer les modifications',
+        creating: 'Création en cours...',
+        details: 'Détails',
+        processing: 'Traitement',
+        clear: 'Effacer',
+        list: 'Liste',
+        grid: 'Grille',
+        clearFilters: 'Effacer les filtres',
+        createNew: 'Créer'
       },
       // Tickets
       tickets: {
@@ -346,7 +477,52 @@ const resources = {
         low: 'Faible',
         medium: 'Moyenne',
         high: 'Élevée',
-        urgent: 'Urgent'
+        urgent: 'Urgent',
+        // Additional keys
+        unknownStatus: 'Statut inconnu',
+        unknownPriority: 'Priorité inconnue',
+        createNew: 'Créer un nouveau ticket',
+        createSubtitle: 'Remplissez les informations ci-dessous pour créer un nouveau ticket de support',
+        createButton: 'Créer un ticket',
+        title: 'Titre',
+        titlePlaceholder: 'Entrez un titre descriptif pour votre ticket...',
+        categoryLabel: 'Catégorie',
+        selectCategory: 'Sélectionner une catégorie',
+        descriptionPlaceholder: 'Décrivez le problème ou la demande en détail...',
+        priorityLevel: 'Niveau de priorité',
+        initialStatus: 'Statut initial',
+        statusOpen: 'Ouvert',
+        statusInProgress: 'En cours',
+        statusResolved: 'Résolu',
+        statusClosed: 'Fermé',
+        tipsTitle: '\uD83D\uDCA1 Conseils pour un meilleur support',
+        tip1: 'Soyez précis sur le problème',
+        tip2: 'Incluez les étapes pour reproduire',
+        tip3: 'Mentionnez votre environnement',
+        tip4: 'Joignez des captures d\'écran pertinentes',
+        noRecent: 'Aucun ticket récent',
+        noRecentDesc: 'Vous n\'avez aucun ticket récent',
+        myTickets: 'Mes tickets',
+        subtitle: 'Gérez et suivez vos demandes de support',
+        newTicket: '+ Nouveau ticket',
+        total: 'Total',
+        highPriority: 'Haute priorité',
+        searchPlaceholder: 'Rechercher par titre, ID ou description...',
+        allStatuses: 'Tous les statuts',
+        allPriorities: 'Toutes les priorités',
+        sort: {
+          newest: 'Les plus récents',
+          oldest: 'Les plus anciens',
+          recentlyUpdated: 'Récemment mis à jour',
+          highPriority: 'Priorité élevée en premier',
+          status: 'Statut'
+        },
+        tickets: 'Tickets',
+        noTickets: 'Aucun ticket',
+        noResults: 'Aucun résultat',
+        noTicketsDesc: 'Vous n\'avez pas encore créé de tickets de support.',
+        noResultsDesc: 'Aucun ticket ne correspond à vos critères de recherche.',
+        createFirst: 'Créer mon premier ticket'
       },
       // Utilisateurs
       users: {
@@ -394,6 +570,7 @@ const resources = {
         typeReplyPlaceholder: 'Tapez votre réponse ici...',
         sending: 'Envoi en cours...',
         sendReply: 'Envoyer une réponse',
+        enterMessageOrAttachment: 'Veuillez saisir un message ou joindre un fichier.',
         success: {
           saved: 'Enregistré avec succès !',
           updated: 'Mis à jour avec succès !',
@@ -420,25 +597,90 @@ const resources = {
           retry: 'Réessayer'
         }
       },
-      // Agent Dashboard
-      agent: {
-        dashboard: 'Tableau de bord Agent',
-        totalResolved: 'Total résolu',
-        resolvedToday: 'Résolu aujourd\'hui',
-        openTickets: 'Tickets ouverts',
-        availableTickets: 'Tickets disponibles',
-        priorityTickets: 'Tickets prioritaires',
-        urgent: 'urgent',
-        noUrgentTickets: 'Aucun ticket urgent pour le moment',
-        view: 'voir',
-        availableTicketsBtn: 'Tickets disponibles',
-        myTicketsBtn: 'Mes tickets',
-        newTicketBtn: 'Nouveau ticket'
+      // Chat
+      chat: {
+        getInstantHelp: 'Obtenez une aide instantanée de notre équipe de support.',
+        // Subtitle used in admin layout header for Live Chat
+        monitorAndJoin: 'Surveillez les conversations en cours et rejoignez-les si nécessaire.',
+        conversations: 'Conversations',
+        conversation: 'Conversation',
+        activeConversation: 'Conversation active',
+        typeMessage: 'Tapez un message...',
+        selectConversation: 'Sélectionnez une conversation ou créez-en une nouvelle'
+      },
+      // FAQ
+      faq: {
+        title: 'FAQ',
+        findQuickAnswers: 'Trouvez des réponses rapides aux questions courantes.',
+        subtitle: "Trouvez des réponses rapidement — posez une question et nous chercherons dans la base de connaissances.",
+        askTitle: 'Posez une question',
+        askDescription: 'Nous recherchons d\'abord dans la base de connaissances. Si aucune correspondance convaincante n\'est trouvée, une réponse générée par l\'IA peut être renvoyée.',
+        placeholder: 'Tapez votre question ici...',
+        searchButton: 'Rechercher',
+        clearButton: 'Effacer',
+        sourceLabel: 'Source',
+        confidenceLabel: 'Confiance',
+        noAnswer: 'Aucune réponse précise trouvée.',
+        languageLabel: 'Langue',
+        loadingFaqs: 'Chargement des FAQs...',
+        noFaqsFound: 'Aucune FAQ trouvée'
+      },
+      // Billing
+      billing: {
+        manageInvoices: 'Gérez vos factures et méthodes de paiement.',
+        paymentHistory: 'Historique des paiements',
+        managePayments: 'Gérez vos paiements et téléchargez les factures',
+        searchPlaceholder: 'Rechercher par plan, statut ou montant...',
+        noResultsSuggestion: 'Essayez d\'ajuster vos critères de recherche pour trouver ce que vous cherchez.',
+        noPayments: 'Vous n\'avez aucun enregistrement de paiement pour le moment. Vos transactions futures apparaîtront ici.',
+        plan: 'Plan',
+        amount: 'Montant',
+        status: 'Statut',
+        actions: 'Actions',
+        na: 'N/A',
+        invoice: 'Facture',
+        payNow: 'Payer maintenant'
+      },
+      // Subscription
+      subscription: {
+        managePlan: 'Gérez votre plan d\'abonnement et ses fonctionnalités.',
+        loadingPlans: 'Chargement des plans d\'abonnement...',
+        noPlans: 'Aucun plan d\'abonnement disponible',
+        checkBack: 'Veuillez revenir plus tard pour les plans disponibles.',
+        choosePlan: 'Choisissez le plan parfait',
+        subtitle: 'Débloquez des fonctionnalités puissantes et améliorez votre expérience avec nos options d\'abonnement flexibles.',
+        activeMessage: 'Vous avez actuellement un abonnement actif. Vous pouvez mettre à niveau, rétrograder ou annuler à tout moment.',
+        mostPopular: 'Le plus populaire',
+        currentPlan: 'Plan Actuel',
+        viewFaq: 'Voir la FAQ'
+      },
+      // Account
+      account: {
+        updateInfo: 'Mettez à jour vos informations personnelles et préférences.',
+        passwordsDoNotMatch: 'Les mots de passe ne correspondent pas',
+        userNotLoaded: 'Utilisateur non chargé',
+        noToken: 'Aucun jeton trouvé — veuillez vous reconnecter',
+        profileUpdated: 'Profil mis à jour avec succès !',
+        loadingProfile: 'Chargement du profil...',
+        userName: 'Nom d\'utilisateur',
+        userEmail: 'utilisateur@exemple.com',
+        fullName: 'Nom complet',
+        email: 'Email',
+        phone: 'Téléphone',
+        role: 'Rôle',
+        leaveBlank: 'Laissez vide pour conserver l\'actuel',
+        changePassword: 'Changer le mot de passe',
+        newPassword: 'Nouveau mot de passe',
+        confirmPassword: 'Confirmer le mot de passe'
+      },
+      // Common
+      common: {
+        client: 'client'
       },
       // Client Dashboard
       client: {
         dashboard: 'Tableau de bord Client',
-        totalTickets: 'Total tickets',
+        totalTickets: 'Nombre total de tickets',
         open: 'Ouvert',
         pending: 'En attente',
         resolvedClosed: 'Résolu/Fermé',
@@ -447,31 +689,21 @@ const resources = {
         quickActions: 'Actions rapides',
         createTicket: 'Créer un nouveau ticket',
         noRecentTickets: 'Aucun ticket récent',
-        checkTickets: 'Consultez votre page tickets pour toute l\'activité'
+        checkTickets: 'Consultez votre page « tickets » pour toute l\'activité'
       },
-      // Chat
-      chat: {
-        getInstantHelp: 'Obtenez une aide instantanée de notre équipe de support.'
-      },
-      // FAQ
-      faq: {
-        findQuickAnswers: 'Trouvez des réponses rapides aux questions courantes.'
-      },
-      // Billing
-      billing: {
-        manageInvoices: 'Gérez vos factures et méthodes de paiement.'
-      },
-      // Subscription
-      subscription: {
-        managePlan: 'Gérez votre plan d\'abonnement et ses fonctionnalités.'
-      },
-      // Account
-      account: {
-        updateInfo: 'Mettez à jour vos informations personnelles et préférences.'
-      },
-      // Common
-      common: {
-        client: 'client'
+      // Agent dashboard translations
+      agent: {
+        totalResolved: 'Total resolved',
+        resolvedToday: 'Resolved today',
+        openTickets: 'Open tickets',
+        availableTickets: 'Available tickets',
+        availableTicketsBtn: 'Available Tickets',
+        myTicketsBtn: 'My Tickets',
+        newTicketBtn: 'New Ticket',
+        priorityTickets: 'Priority Tickets',
+        urgent: 'urgent',
+        noUrgentTickets: 'No urgent tickets at the moment',
+        view: 'View'
       }
     }
   }
@@ -483,14 +715,14 @@ interface I18nProviderProps {
 
 export default function I18nProvider({ children }: I18nProviderProps) {
   const [i18nInitialized, setI18nInitialized] = useState(false)
-  const [lang, setLang] = useState(() => i18n.language || 'fr')
+  const [lang, setLang] = useState(() => i18n.language || 'en')
 
   useEffect(() => {
     let mounted = true
 
     const onLanguageChanged = (lng: string) => {
       try {
-        document.documentElement.lang = lng || 'fr'
+        document.documentElement.lang = lng || 'en'
       } catch (e) {
         // ignore in non-browser env
       }
@@ -503,7 +735,7 @@ export default function I18nProvider({ children }: I18nProviderProps) {
         .use(initReactI18next)
         .init({
           resources,
-          fallbackLng: 'fr',
+          fallbackLng: 'en',
           debug: false,
           
           detection: {
@@ -523,20 +755,20 @@ export default function I18nProvider({ children }: I18nProviderProps) {
         .then(() => {
           if (!mounted) return
           setI18nInitialized(true)
-          const current = i18n.language || 'fr'
+          const current = i18n.language || 'en'
           setLang(current)
           try {
-            document.documentElement.lang = current
+            document.documentElement.lang = current || 'en'
           } catch (e) {
             // ignore
           }
         })
     } else {
       setI18nInitialized(true)
-      const current = i18n.language || 'fr'
+      const current = i18n.language || 'en'
       setLang(current)
       try {
-        document.documentElement.lang = current
+        document.documentElement.lang = current || 'en'
       } catch (e) {
         // ignore
       }

@@ -18,6 +18,8 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { Ticket, TicketResponse } from '@/types'
+import FileUploader from '@/components/FileUploader'
+import AttachmentDisplay from '@/components/AttachmentDisplay'
 import toast from 'react-hot-toast'
 
 interface TicketDetail extends Omit<Ticket, 'description' | 'client'> {
@@ -53,6 +55,7 @@ export default function TicketDetailPage() {
   const [loading, setLoading] = useState(true)
   const [responseLoading, setResponseLoading] = useState(false)
   const [newMessage, setNewMessage] = useState('')
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
 
   const ticketId = params.id as string
 
@@ -124,15 +127,17 @@ export default function TicketDetailPage() {
   }
 
   const handleAddResponse = async () => {
-    if (!newMessage.trim()) return
+    if (!newMessage.trim() && !selectedFile) return
 
     try {
       setResponseLoading(true)
       await ticketService.addResponse(ticketId, {
-        message: newMessage
+        message: newMessage,
+        attachment: selectedFile
       })
       
       setNewMessage('')
+      setSelectedFile(null)
       await loadTicketDetails() // Reload to get updated responses
       toast.success('Response added successfully!')
     } catch (error) {
@@ -270,9 +275,9 @@ export default function TicketDetailPage() {
                     // Try multiple sources for the user name
                     displayName = response.user?.name || 
                                  // If this is the client who created the ticket, use ticket client info
-                                 (response.user_id === ticket.client?.id ? `${ticket.client?.name} (Client)` : null) ||
-                                 // Last fallback
-                                 'Unknown User'
+                                 (response.user_id === ticket?.client?.id ? `${ticket?.client?.name} (Client)` : null) ||
+                                  // Last fallback
+                                  'Unknown User'
                   }
                   
                   return (
@@ -300,6 +305,18 @@ export default function TicketDetailPage() {
                           </span>
                         </div>
                         <p className="text-gray-700 whitespace-pre-wrap mb-3">{response.message}</p>
+                        
+                        {/* Attachment Display */}
+                        {response.attachment_path && response.attachment_name && (
+                          <div className="mt-3">
+                            <AttachmentDisplay
+                              responseId={response.id}
+                              attachmentName={response.attachment_name}
+                              attachmentType={response.attachment_type || ''}
+                              attachmentSize={response.attachment_size || undefined}
+                            />
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -317,10 +334,17 @@ export default function TicketDetailPage() {
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 resize-none"
                   />
                   
+                  {/* File Upload */}
+                  <FileUploader
+                    onFileSelect={setSelectedFile}
+                    selectedFile={selectedFile}
+                    className="w-full"
+                  />
+                  
                   <div className="flex items-center justify-end">
                     <button
                       onClick={handleAddResponse}
-                      disabled={!newMessage.trim() || responseLoading}
+                      disabled={(!newMessage.trim() && !selectedFile) || responseLoading}
                       className="flex items-center gap-2 px-4 py-2 bg-cyan-500 text-white rounded-lg hover:bg-cyan-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
                       {responseLoading ? (
@@ -422,7 +446,7 @@ export default function TicketDetailPage() {
               {ticket.client?.department && (
                 <div>
                   <label className="block text-sm font-medium text-gray-500 mb-1">Department</label>
-                  <span className="text-sm text-gray-900">{ticket.client.department}</span>
+                  <span className="text-sm text-gray-900">{ticket.client?.department}</span>
                 </div>
               )}
             </div>

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useRouter } from 'next/navigation'
 import { chatService } from '@/services/chatService'
 import { Conversation, ChatMessage, UserShort } from '@/types'
@@ -100,6 +101,7 @@ export default function AgentClientChatPage() {
   const channelRef = useRef<any>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { user } = useAppContext()
+  const { t } = useTranslation()
 
   // Effects
   useEffect(() => {
@@ -226,21 +228,37 @@ export default function AgentClientChatPage() {
 
   const loadQuickResponses = async () => {
     try {
-      const data = await chatService.fetchQuickResponses()
+      console.log('Loading quick responses...')
+      const data: any = await chatService.fetchQuickResponses()
+      console.log('Quick responses data received:', data)
       
-      // Handle the predefined response format
+      // Handle different response formats
       let responses: QuickResponse[] = []
       if (Array.isArray(data)) {
-        responses = data
-      } else if (data?.data) {
-        responses = Array.isArray(data.data) ? data.data : []
+        responses = data.map((item: any, index: number) => ({
+          id: item.id || index,
+          content: item.content || item.text || item
+        }))
+      } else if (data?.data && Array.isArray(data.data)) {
+        responses = data.data.map((item: any, index: number) => ({
+          id: item.id || index,
+          content: item.content || item.text || item
+        }))
+      } else if (data?.suggestions && Array.isArray(data.suggestions)) {
+        responses = data.suggestions.map((item: any, index: number) => ({
+          id: index,
+          content: typeof item === 'string' ? item : item.content || item.text
+        }))
       }
       
+      console.log('Processed responses:', responses)
+      
       setQuickResponses(responses)
+      console.log('Quick responses set:', responses.length, 'items')
     } catch (error) {
       console.error('Error loading quick responses:', error)
-      // This shouldn't happen now since we return static data
       setQuickResponses([])
+      console.log('Set empty responses due to error')
     }
   }
 
@@ -335,6 +353,61 @@ export default function AgentClientChatPage() {
     })
   }
 
+  // New helpers: resolve attachment URL and provide download/open behavior
+  const getAttachmentUrl = (attachment: any) => {
+    return (
+      attachment?.url ||
+      attachment?.download_url ||
+      attachment?.path ||
+      attachment?.file_url ||
+      attachment?.link ||
+      null
+    )
+  }
+
+  const downloadAttachment = async (attachment: any) => {
+    const url = getAttachmentUrl(attachment)
+    const filename =
+      attachment?.name || attachment?.filename || (typeof url === 'string' ? url.split('/').pop() : 'file')
+
+    if (!url) {
+      toast.error('Attachment URL not available')
+      return
+    }
+
+    try {
+      // Try to open direct links in a new tab (viewer) — for same-origin or public URLs this will work well
+      if (typeof url === 'string' && (url.startsWith('http') || url.startsWith('//'))) {
+        // Create an anchor to trigger download where possible, otherwise open in new tab
+        const a = document.createElement('a')
+        a.href = url
+        a.target = '_blank'
+        // Set download attribute to suggest filename for same-origin resources
+        a.download = filename
+        document.body.appendChild(a)
+        a.click()
+        a.remove()
+        return
+      }
+
+      // Fallback: fetch the resource and force a download (handles protected endpoints that return blob)
+      const res = await fetch(url)
+      if (!res.ok) throw new Error('Failed to fetch attachment')
+      const blob = await res.blob()
+      const blobUrl = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = blobUrl
+      a.download = filename
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(blobUrl)
+    } catch (e) {
+      console.error('Download failed', e)
+      toast.error('Failed to download attachment')
+    }
+  }
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }
@@ -354,17 +427,134 @@ export default function AgentClientChatPage() {
     
     try {
       setAiGenerating(true)
-      // Use the available generateQuickResponses method with the last message as context
-      const lastMessage = messages[messages.length - 1]
-      const context = lastMessage ? lastMessage.message : 'Support client'
       
-      const response = await chatService.generateQuickResponses(context)
-      if (response?.suggestions && response.suggestions.length > 0) {
-        setNewMessage(response.suggestions[0])
+      // Get context from recent messages
+      const lastMessage = messages[messages.length - 1]
+      const context = lastMessage ? lastMessage.message : 'Customer support inquiry'
+      
+      // Create a professional agent prompt in English
+      const prompt = `As a professional customer support agent, generate an appropriate response for this customer issue: "${context}". The response should be:
+      - Professional and empathetic
+      - Solution-oriented
+      - Reassuring for the customer
+      - In English
+      
+      Respond directly without numbering or formatting.`
+      
+      const response: any = await chatService.generateQuickResponses(prompt, 'en')
+      
+      console.log('AI Response:', response)
+      
+      // Handle different response formats
+      let generatedText = ''
+      
+      if (typeof response === 'string') {
+        generatedText = response
+      } else if (response?.suggestion) {
+        generatedText = response.suggestion
+      } else if (response?.suggestions && Array.isArray(response.suggestions) && response.suggestions.length > 0) {
+        generatedText = response.suggestions[0]
+      } else if (response?.data && typeof response.data === 'string') {
+        generatedText = response.data
+      } else if (response?.content) {
+        generatedText = response.content
+      }
+      
+      // Clean up the generated text
+      if (generatedText) {
+        // Remove any numbering or formatting
+        generatedText = generatedText.replace(/^\d+[\.\)]\s*/, '').trim()
+        generatedText = generatedText.replace(/^[\-\*\+]\s*/, '').trim()
+        generatedText = generatedText.replace(/^"(.+)"$/, '$1').trim() // Remove quotes
+        
+        // Set the generated text as the message
+        setNewMessage(generatedText)
+        toast.success('AI Response generated successfully')
+      } else {
+        toast.error('No response generated by AI')
       }
     } catch (error) {
       console.error('Error generating AI response:', error)
       toast.error('Error generating AI response')
+    } finally {
+      setAiGenerating(false)
+    }
+  }
+
+  const generateAIQuickResponses = async () => {
+    if (aiGenerating) return
+    
+    try {
+      setAiGenerating(true)
+      
+      // Get context from recent messages
+      const lastMessages = messages.slice(-3) // Get last 3 messages for context
+      const context = lastMessages.length > 0 
+        ? lastMessages.map(m => `${m.user.name}: ${m.message}`).join('\n')
+        : 'General customer support inquiry'
+      
+      // Create a simpler prompt that works better with the API
+      const prompt = `Generate 6 short and professional responses for a customer support agent. Context: ${context}
+      
+      Format: one response per line, no numbering.
+      Style: professional, empathetic, solution-oriented.
+      Language: English.`
+      
+      console.log('Sending prompt:', prompt)
+      
+      const response: any = await chatService.generateQuickResponses(prompt, 'en')
+      
+      console.log('AI Quick Responses received:', response)
+      console.log('Response type:', typeof response)
+      
+      // Parse the response with multiple strategies
+      let generatedResponses: string[] = []
+      
+      // Strategy 1: Direct string parsing
+      if (typeof response === 'string') {
+        console.log('Parsing as string')
+        generatedResponses = response.split(/[\n\r]+/)
+          .map((line: string) => line.replace(/^\d+[\.\)]\s*/, '').trim())
+          .filter((line: string) => line.length > 15 && line.length < 200)
+      } 
+      // Strategy 2: Response has suggestion property
+      else if (response?.suggestion && typeof response.suggestion === 'string') {
+        console.log('Parsing suggestion property')
+        generatedResponses = response.suggestion.split(/[\n\r]+/)
+          .map((line: string) => line.replace(/^\d+[\.\)]\s*/, '').trim())
+          .filter((line: string) => line.length > 15 && line.length < 200)
+      }
+      // Strategy 3: Response has data property
+      else if (response?.data && typeof response.data === 'string') {
+        console.log('Parsing data property')
+        generatedResponses = response.data.split(/[\n\r]+/)
+          .map((line: string) => line.replace(/^\d+[\.\)]\s*/, '').trim())
+          .filter((line: string) => line.length > 15 && line.length < 200)
+      }
+      
+      console.log('Generated responses after parsing:', generatedResponses)
+      
+      // If we got good responses, use them
+      if (generatedResponses.length >= 3) {
+        const newQuickResponses = generatedResponses.slice(0, 6).map((content, index) => ({
+          id: Date.now() + index,
+          content: content.replace(/^["'](.+)["']$/, '$1').trim()
+        }))
+        
+        setQuickResponses(newQuickResponses)
+        toast.success(`✅ ${newQuickResponses.length} new responses generated with AI`)
+        console.log('Set new AI responses:', newQuickResponses)
+      } else {
+        // No fallback responses - just clear the list
+        setQuickResponses([])
+        toast.error('❌ No response generated by AI')
+      }
+    } catch (error) {
+      console.error('Error generating AI quick responses:', error)
+      toast.error('❌ Error during generation.')
+      
+      // Clear responses on error instead of using fallback
+      setQuickResponses([])
     } finally {
       setAiGenerating(false)
     }
@@ -398,13 +588,13 @@ export default function AgentClientChatPage() {
         {/* Header */}
         <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-teal-50 to-cyan-50">
           <div className="flex items-center justify-between mb-4">
-            <h1 className="text-xl font-bold text-gray-900">Client Chat</h1>
+            <h1 className="text-xl font-bold text-gray-900">{t('nav.clientChat', { defaultValue: 'Client Chat' })}</h1>
             <button 
               onClick={() => router.push('/agentdashboard/client-chat/create')}
               className="flex items-center gap-2 px-3 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 transition-colors text-sm font-medium"
             >
               <Plus className="w-4 h-4" />
-              New Discussion
+              {t('clientChat.newDiscussion', { defaultValue: 'New Discussion' })}
             </button>
           </div>
           
@@ -413,7 +603,7 @@ export default function AgentClientChatPage() {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
             <input
               type="text"
-              placeholder="Search conversations..."
+              placeholder={t('clientChat.searchConversations', { defaultValue: 'Search conversations...' })}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-transparent bg-white shadow-sm transition-all duration-200"
@@ -430,7 +620,7 @@ export default function AgentClientChatPage() {
           ) : filteredConversations.length === 0 ? (
             <div className="p-8 text-center text-gray-500">
               <MessageSquare className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-              <p>No conversations found</p>
+              <p>{t('clientChat.noConversations', { defaultValue: 'No conversations found' })}</p>
             </div>
           ) : (
             filteredConversations.map((conversation) => (
@@ -534,7 +724,7 @@ export default function AgentClientChatPage() {
                       <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
                       <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
                     </div>
-                    {typingUsers.length === 1 ? 'User is typing...' : 'Multiple users are typing...'}
+                    {typingUsers.length === 1 ? t('chat.userTyping', { defaultValue: 'User is typing...' }) : t('chat.multipleUsersTyping', { defaultValue: 'Multiple users are typing...' })}
                   </span>
                 </div>
               )}
@@ -546,7 +736,7 @@ export default function AgentClientChatPage() {
                 <div className="flex items-center justify-center h-full">
                   <div className="text-center text-gray-500">
                     <MessageSquare className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                    <p>Start the conversation by sending a message</p>
+                    <p>{t('clientChat.startConversation', { defaultValue: 'Start the conversation by sending a message' })}</p>
                   </div>
                 </div>
               ) : (
@@ -594,20 +784,27 @@ export default function AgentClientChatPage() {
                           
                           {message.attachments && message.attachments.length > 0 && (
                             <div className="mt-2 space-y-2">
-                              {message.attachments.map((attachment, index) => (
-                                <div
-                                  key={index}
-                                  className={`flex items-center space-x-2 p-2 rounded ${
-                                    isCurrentUser ? 'bg-teal-600' : 'bg-gray-100'
-                                  }`}
-                                >
-                                  <Paperclip className="w-4 h-4" />
-                                  <span className="text-sm truncate">{attachment.name || 'File'}</span>
-                                  <button className="ml-auto">
-                                    <Download className="w-4 h-4" />
-                                  </button>
-                                </div>
-                              ))}
+                              {message.attachments.map((attachment: any, index: number) => {
+                                const filename = attachment?.name || attachment?.filename || (attachment?.url || attachment?.path || '').split('/').pop() || 'File'
+                                return (
+                                  <div
+                                    key={index}
+                                    className={`flex items-center space-x-2 p-2 rounded ${
+                                      isCurrentUser ? 'bg-teal-600' : 'bg-gray-100'
+                                    }`}
+                                  >
+                                    <Paperclip className="w-4 h-4" />
+                                    <span title={filename} className="text-sm truncate">{filename}</span>
+                                    <button
+                                      onClick={() => downloadAttachment(attachment)}
+                                      className="ml-auto text-gray-700 hover:text-teal-600"
+                                      title="Download / Open"
+                                    >
+                                      <Download className="w-4 h-4" />
+                                    </button>
+                                  </div>
+                                )
+                              })}
                             </div>
                           )}
                           
@@ -652,28 +849,66 @@ export default function AgentClientChatPage() {
             )}
 
             {/* Quick Responses */}
-            {showQuickResponses && quickResponses.length > 0 && (
+            {showQuickResponses && (
               <div className="bg-white border-t border-gray-200 p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-sm font-medium text-gray-700">Quick Responses</h3>
-                  <button
-                    onClick={() => setShowQuickResponses(false)}
-                    className="text-gray-400 hover:text-gray-600"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {quickResponses.slice(0, 5).map((response) => (
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center space-x-2">
+                    <h3 className="text-sm font-medium text-gray-700">{t('chat.quickResponses', { defaultValue: 'Quick Responses' })}</h3>
+                    <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                      {quickResponses.length} responses
+                    </span>
+                  </div>
+                  <div className="flex items-center space-x-2">
                     <button
-                      key={response.id}
-                      onClick={() => insertQuickResponse(response)}
-                      className="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded-full text-gray-700"
+                      onClick={generateAIQuickResponses}
+                      disabled={aiGenerating}
+                      className={`text-xs px-3 py-1.5 rounded-lg transition-colors ${
+                        aiGenerating 
+                          ? 'bg-gray-200 text-gray-500 cursor-not-allowed' 
+                          : 'bg-gradient-to-r from-purple-500 to-purple-600 text-white hover:from-purple-600 hover:to-purple-700 shadow-sm hover:shadow-md'
+                      }`}
                     >
-                      {response.title || response.content.substring(0, 30) + '...'}
+                      {aiGenerating ? '⏳ Generating...' : '🤖 Generate with AI'}
                     </button>
-                  ))}
+                    <button
+                      onClick={() => setShowQuickResponses(false)}
+                      className="text-gray-400 hover:text-gray-600"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
+                
+                {quickResponses.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {quickResponses.slice(0, 6).map((response, index) => (
+                      <button
+                        key={`${response.id}-${index}`} // Use both id and index for uniqueness
+                        onClick={() => insertQuickResponse(response)}
+                        className="px-3 py-2 text-sm bg-gradient-to-r from-gray-100 to-gray-200 hover:from-teal-100 hover:to-teal-200 rounded-lg text-gray-700 hover:text-teal-800 transition-all duration-200 border border-gray-200 hover:border-teal-300"
+                        title={response.content}
+                      >
+                        {response.content.substring(0, 35) + (response.content.length > 35 ? '...' : '')}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-4">
+                    <div className="text-gray-400 text-sm mb-2">💬</div>
+                    <p className="text-xs text-gray-500 mb-3">No quick responses available</p>
+                    <button
+                      onClick={generateAIQuickResponses}
+                      disabled={aiGenerating}
+                      className={`text-xs px-3 py-1.5 rounded-lg transition-colors ${
+                        aiGenerating 
+                          ? 'bg-gray-200 text-gray-500 cursor-not-allowed' 
+                          : 'bg-gradient-to-r from-purple-500 to-purple-600 text-white hover:from-purple-600 hover:to-purple-700 shadow-sm hover:shadow-md'
+                      }`}
+                    >
+                      {aiGenerating ? '⏳ Generating...' : '🤖 Generate with AI'}
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 
@@ -693,7 +928,7 @@ export default function AgentClientChatPage() {
                     onClick={generateAIResponse}
                     disabled={aiGenerating}
                     className="p-2 text-gray-400 hover:text-teal-600 rounded-lg hover:bg-gray-100 disabled:opacity-50"
-                    title="Generate AI Response"
+                    title={t('chat.generateAI', { defaultValue: 'Generate AI Response' })}
                   >
                     {aiGenerating ? (
                       <div className="w-5 h-5 animate-spin border-2 border-teal-500 border-t-transparent rounded-full"></div>
@@ -704,8 +939,10 @@ export default function AgentClientChatPage() {
                   
                   <button
                     onClick={() => setShowQuickResponses(!showQuickResponses)}
-                    className="p-2 text-gray-400 hover:text-teal-600 rounded-lg hover:bg-gray-100"
-                    title="Quick Responses"
+                    className={`p-2 rounded-lg hover:bg-gray-100 transition-colors ${
+                      showQuickResponses ? 'text-teal-600 bg-teal-50' : 'text-gray-400 hover:text-teal-600'
+                    } ${aiGenerating ? 'animate-pulse' : ''}`}
+                    title={t('chat.quickResponses', { defaultValue: 'Quick Responses' })}
                   >
                     <MessageSquare className="w-5 h-5" />
                   </button>
@@ -717,7 +954,7 @@ export default function AgentClientChatPage() {
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
                     onKeyPress={handleKeyPress}
-                    placeholder="Type your message..."
+                    placeholder={t('chat.typeYourMessage', { defaultValue: 'Type your message...' })}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent resize-none"
                     rows={1}
                     style={{ minHeight: '40px', maxHeight: '120px' }}
@@ -752,6 +989,7 @@ export default function AgentClientChatPage() {
                     onClick={sendMessage}
                     disabled={loading || (!newMessage.trim() && files.length === 0)}
                     className="p-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                    title={t('chat.send', { defaultValue: 'Send' })}
                   >
                     <Send className="w-5 h-5" />
                   </button>
@@ -765,10 +1003,10 @@ export default function AgentClientChatPage() {
             <div className="text-center">
               <MessageSquare className="w-16 h-16 mx-auto mb-4 text-gray-300" />
               <h2 className="text-xl font-semibold text-gray-600 mb-2">
-                Select a conversation
+                {t('clientChat.selectConversation', { defaultValue: 'Select a conversation' })}
               </h2>
               <p className="text-gray-500">
-                Choose a conversation from the list to start chatting with clients
+                {t('clientChat.chooseConversation', { defaultValue: 'Choose a conversation from the list to start chatting with clients' })}
               </p>
             </div>
           </div>

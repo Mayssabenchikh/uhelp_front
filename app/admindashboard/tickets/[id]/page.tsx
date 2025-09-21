@@ -893,10 +893,10 @@ export default function TicketDetailPage(_: TicketDetailPageProps) {
                         <User className="w-6 h-6 text-white" />
                       </div>
                       <div className="flex-1">
-                        <h4 className="font-bold text-slate-900">{ticket.client.name}</h4>
+                        <h4 className="font-bold text-slate-900">{ticket.client?.name}</h4>
                         <div className="flex items-center gap-2 text-sm text-slate-600">
                           <Mail className="w-3 h-3" />
-                          {ticket.client.email}
+                          {ticket.client?.email}
                         </div>
                       </div>
                     </div>

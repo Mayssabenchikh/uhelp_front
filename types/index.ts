@@ -45,6 +45,10 @@ export interface TicketResponse {
   user_id: number
   user: UserShort
   message: string
+  attachment_path?: string | null
+  attachment_name?: string | null
+  attachment_type?: string | null
+  attachment_size?: number | null
   created_at: string
 }
 

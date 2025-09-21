@@ -436,7 +436,7 @@ export default function EditTicketPage() {
                   )}
                   {ticket.client && !formData.client_id && (
                     <p className="text-sm text-cyan-600 mt-1">
-                      Currently: {ticket.client.name} ({ticket.client.email})
+                      Currently: {ticket.client?.name} ({ticket.client?.email})
                     </p>
                   )}
                 </div>

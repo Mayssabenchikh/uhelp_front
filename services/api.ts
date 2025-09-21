@@ -94,6 +94,46 @@ async function unwrap<T>(p: Promise<AxiosResponse<ApiResponse<T>>>): Promise<Api
   return res.data ?? { data: undefined };
 }
 
+// Normalize ticket payloads from different backend shapes so UI can rely on `ticket.client`
+function normalizeTicketSource(raw: any) {
+  if (!raw) return null
+
+  // Unwrap nested `.data` layers (ApiResponse wrappers or pagination shapes)
+  let source = raw
+  while (source && typeof source === 'object' && Object.prototype.hasOwnProperty.call(source, 'data')) {
+    source = source.data
+  }
+  if (!source || typeof source !== 'object') return null
+
+  // Support multiple possible names the backend may use for the client-like object
+  const clientCandidates = [
+    'client',
+    'user',
+    'customer',
+    'requester',
+  ]
+
+  let client = null
+  for (const key of clientCandidates) {
+    if (source[key] && typeof source[key] === 'object') {
+      client = source[key]
+      break
+    }
+  }
+
+  // Fallback to separate id/name/email fields when the backend provides them individually
+  if (!client && (source.client_id || source.client_name || source.client_email || source.user_id || source.user_name)) {
+    client = {
+      id: source.client_id ?? source.user_id ?? null,
+      name: source.client_name ?? source.user_name ?? source.client_name ?? null,
+      email: source.client_email ?? source.user_email ?? null,
+    }
+  }
+
+  // Ensure we always return an object with a `client` property (may be null)
+  return { ...source, client }
+}
+
 /* -------------------------
    Service methods (typed)
    ------------------------- */
@@ -102,8 +142,14 @@ export const ticketService = {
   getAll: (params?: any) => unwrap<any[]>(api.get<ApiResponse<any[]>>('/tickets', { params })),
   getAssigned: (params?: any) => unwrap<any[]>(api.get<ApiResponse<any[]>>('/tickets/agent/assigned', { params })),
   getAvailable: (params?: any) => unwrap<any[]>(api.get<ApiResponse<any[]>>('/tickets/available', { params })),
-  getUserTickets: (params?: any) => unwrap<any[]>(api.get<ApiResponse<any[]>>('/tickets', { params })),
-  getById: (id: string | number) => unwrap<any>(api.get<ApiResponse<any>>(`/tickets/${id}`)),
+  getUserTickets: (params?: any) => unwrap<any[]>(api.get<ApiResponse<any>>('/tickets', { params })),
+  // Return ApiResponse where `.data` is a normalized ticket (always has `client` when possible)
+  getById: async (id: string | number) => {
+    const res = await api.get<ApiResponse<any>>(`/tickets/${id}`)
+    const apiRes = res.data ?? { data: null }
+    const normalized = normalizeTicketSource(apiRes.data ?? apiRes)
+    return { ...apiRes, data: normalized }
+  },
   getResponses: (id: string | number) => unwrap<any[]>(api.get<ApiResponse<any[]>>(`/tickets/${id}/responses`)),
   create: (data: { subject: string; description: string; priority?: string; category?: string; status?: string; agentassigne_id?: number }) => {
     const payload: Record<string, any> = {
@@ -120,8 +166,25 @@ export const ticketService = {
   delete: (id: string | number) => unwrap<any>(api.delete<ApiResponse<any>>(`/tickets/${id}`)),
   assignAgent: (ticketId: string | number, agentId: number) =>
     unwrap<any>(api.post<ApiResponse<any>>(`/tickets/${ticketId}/assign`, { agent_id: agentId })),
-  addResponse: (ticketId: string | number, data: { message: string }) => {
-    return unwrap<any>(api.post<ApiResponse<any>>(`/tickets/${ticketId}/responses`, { message: data.message }));
+  // Accept either a plain payload or a FormData so callers can pass a FormData directly.
+  addResponse: (ticketId: string | number, data: FormData | { message: string; attachment?: File | null }) => {
+    // If caller provided a FormData (from the client), send it as-is
+    if (data instanceof FormData) {
+      return unwrap<any>(api.post<ApiResponse<any>>(`/tickets/${ticketId}/responses`, data))
+    }
+
+    // Otherwise build FormData from the plain object
+    const formData = new FormData()
+    formData.append('message', data.message)
+    if (data.attachment) {
+      formData.append('attachment', data.attachment)
+    }
+    return unwrap<any>(api.post<ApiResponse<any>>(`/tickets/${ticketId}/responses`, formData))
+  },
+  downloadAttachment: (responseId: string | number) => {
+    return api.get(`/responses/${responseId}/download-attachment`, {
+      responseType: 'blob',
+    });
   },
 };
 
@@ -179,8 +242,18 @@ export const subscriptionService = {
 };
 
 export const faqService = {
-  getAll: async (_params?: { category?: string; search?: string }) => ({ data: [] as any[] }),
-  getCategories: async () => ({ data: [] as any[] }),
+  getAll: async (params?: { category?: string; search?: string; language?: string }) => {
+    const res = await api.get<ApiResponse<any>>('/faqs', { params });
+    // backend returns ApiResponse with data = paginator object
+    return res.data ?? { data: [] };
+  },
+  getCategories: async () => {
+    // fetch all faqs (we request a large per_page to get enough items) and derive categories
+    const res = await api.get<ApiResponse<any>>('/faqs', { params: { per_page: 1000 } }).catch(() => ({ data: { data: [] } } as any));
+    const faqs = (res.data && (res.data as any).data && (res.data as any).data.data) || [];
+    const categories = Array.from(new Set(faqs.map((f: any) => f.category).filter(Boolean)));
+    return { data: categories };
+  },
 };
 
 export const departmentService = {
