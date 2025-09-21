@@ -78,8 +78,7 @@ export default function EditTicketPage() {
   const priorityOptions = [
     { value: 'low', label: 'Low', color: 'text-gray-700 bg-gray-50', icon: '⚪' },
     { value: 'medium', label: 'Medium', color: 'text-yellow-700 bg-yellow-50', icon: '🟡' },
-    { value: 'high', label: 'High', color: 'text-red-700 bg-red-50', icon: '🔴' },
-    { value: 'urgent', label: 'Urgent', color: 'text-purple-700 bg-purple-50', icon: '🟣' }
+    { value: 'high', label: 'High', color: 'text-red-700 bg-red-50', icon: '🔴' }
   ]
 
   if (!isMounted) {

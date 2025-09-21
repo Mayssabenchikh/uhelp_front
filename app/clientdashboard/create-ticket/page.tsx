@@ -84,7 +84,6 @@ export default function CreateTicketPage() {
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
-      case 'urgent': return 'text-purple-600 bg-purple-50/80 border-purple-200 backdrop-blur-sm'
       case 'high': return 'text-red-600 bg-red-50/80 border-red-200 backdrop-blur-sm'
       case 'medium': return 'text-cyan-600 bg-cyan-50/80 border-cyan-200 backdrop-blur-sm'
       case 'low': return 'text-slate-600 bg-slate-50/80 border-slate-200 backdrop-blur-sm'
@@ -94,7 +93,6 @@ export default function CreateTicketPage() {
 
   const getPriorityIcon = (priority: string) => {
     switch (priority) {
-      case 'urgent': return <AlertCircle className="w-4 h-4" />
       case 'high': return <AlertCircle className="w-4 h-4" />
       case 'medium': return <Clock className="w-4 h-4" />
       case 'low': return <CheckCircle className="w-4 h-4" />
@@ -201,7 +199,7 @@ export default function CreateTicketPage() {
               <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm border border-slate-200/60 p-6 hover:shadow-md transition-all duration-200">
                 <h3 className="text-lg font-bold text-slate-900 mb-5">{t('tickets.priorityLevel') || 'Priority Level'}</h3>
                 <div className="space-y-3">
-                  {(['urgent', 'high', 'medium', 'low'] as const).map((priority) => (
+                  {(['high', 'medium', 'low'] as const).map((priority) => (
                     <label key={priority} className="flex items-center cursor-pointer group">
                       <input
                         type="radio"
