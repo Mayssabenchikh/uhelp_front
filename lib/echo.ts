@@ -70,7 +70,24 @@ export function getEcho(): Echo<any> {
 
 export function disconnectEcho() {
   if (echoInstance) {
-    try { echoInstance.disconnect() } catch {}
+    try {
+      // Check connection state before disconnecting
+      if (echoInstance.connector && echoInstance.connector.pusher) {
+        const pusher = echoInstance.connector.pusher
+        const state = pusher.connection?.state
+        
+        // Only disconnect if not already disconnecting/disconnected
+        if (state && state !== 'disconnected' && state !== 'disconnecting') {
+          echoInstance.disconnect()
+        }
+      } else {
+        // If no pusher instance, try to disconnect anyway
+        echoInstance.disconnect()
+      }
+    } catch (error) {
+      // Silently handle disconnect errors as they're common during cleanup
+      console.log('Echo disconnect completed with cleanup')
+    }
     echoInstance = null
   }
 }

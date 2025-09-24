@@ -214,7 +214,7 @@ export default function TicketsPage() {
             <p className="text-gray-600 mt-1">{t('tickets.subtitle') || 'Manage and track your support requests'}</p>
           </div>
           <Link 
-            href="/clientdashboard/tickets/new"
+            href="/clientdashboard/create-ticket"
             className="bg-cyan-600 hover:bg-cyan-700 text-white px-6 py-3 rounded-xl font-medium transition-colors shadow-sm hover:shadow-md"
           >
             {t('tickets.newTicket') || '+ New Ticket'}
@@ -371,7 +371,7 @@ export default function TicketsPage() {
             </p>
             {tickets.length === 0 ? (
               <Link 
-                href="/clientdashboard/tickets/new"
+                href="/clientdashboard/create-ticket"
                 className="inline-flex items-center px-6 py-3 bg-cyan-600 text-white rounded-xl hover:bg-cyan-700 transition-colors"
               >
                 {t('tickets.createFirst') || 'Create my first ticket'}

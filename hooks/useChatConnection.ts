@@ -29,7 +29,11 @@ export function useChatConnection({
       // Unsubscribe from previous channel
       if (channelRef.current) {
         console.log('Unsubscribing from previous channel')
-        channelRef.current.unsubscribe()
+        try {
+          channelRef.current.unsubscribe()
+        } catch (error) {
+          console.warn('Error unsubscribing from previous channel:', error)
+        }
       }
 
       // Subscribe to new channel
@@ -87,9 +91,28 @@ export function useChatConnection({
     if (channelRef.current) {
       console.log('Unsubscribing from chat channel')
       try {
-        channelRef.current.unsubscribe()
+        // Check if Echo instance is still available and connected
+        if (echoRef.current && echoRef.current.connector && echoRef.current.connector.pusher) {
+          const pusher = echoRef.current.connector.pusher
+          const state = pusher.connection?.state
+          
+          // Only attempt unsubscribe if connection is not closing/closed
+          if (state && state !== 'disconnected' && state !== 'disconnecting') {
+            channelRef.current.unsubscribe()
+          } else {
+            console.log('WebSocket connection is closing/closed, skipping unsubscribe')
+          }
+        } else {
+          // If no pusher instance, try to unsubscribe anyway but catch errors
+          channelRef.current.unsubscribe()
+        }
       } catch (error) {
-        console.warn('Error unsubscribing:', error)
+        // Only log as warning since this is expected during cleanup
+        if (error instanceof Error && error.message.includes('CLOSING or CLOSED')) {
+          console.log('WebSocket is already in CLOSING or CLOSED state.')
+        } else {
+          console.warn('Error unsubscribing:', error)
+        }
       }
       channelRef.current = null
     }
@@ -124,13 +147,20 @@ export function useChatConnection({
   // Cleanup on unmount
   useEffect(() => {
     return () => {
+      // Unsubscribe from channel first
       unsubscribe()
+      
+      // Then disconnect Echo if needed
       if (echoRef.current) {
         try {
-          disconnectEcho()
+          // Small delay to allow unsubscribe to complete
+          setTimeout(() => {
+            disconnectEcho()
+          }, 100)
         } catch (error) {
           console.warn('Error disconnecting Echo:', error)
         }
+        echoRef.current = null
       }
     }
   }, [unsubscribe])

@@ -24,16 +24,24 @@ export default function TicketDetailPage() {
     setIsMounted(true)
   }, [])
 
+  // Redirect if ticketId is "new"
+  useEffect(() => {
+    if (ticketId === 'new') {
+      router.replace('/clientdashboard/create-ticket')
+      return
+    }
+  }, [ticketId, router])
+
   // Fetch ticket and responses
-  const { data: ticketRes } = useQuery({
+  const { data: ticketRes, error: ticketError } = useQuery({
     queryKey: ['ticket', ticketId],
     queryFn: () => ticketService.getById(ticketId),
-    enabled: Boolean(ticketId)
+    enabled: Boolean(ticketId) && ticketId !== 'new'
   })
-  const { data: responsesRes } = useQuery({
+  const { data: responsesRes, error: responsesError } = useQuery({
     queryKey: ['ticket-responses', ticketId],
     queryFn: () => ticketService.getResponses(ticketId),
-    enabled: Boolean(ticketId)
+    enabled: Boolean(ticketId) && ticketId !== 'new'
   })
 
   // Defensive parsing: support both ApiResponse and raw ticket shapes
@@ -135,6 +143,29 @@ export default function TicketDetailPage() {
       month: 'short',
       year: messageDate.getFullYear() !== now.getFullYear() ? 'numeric' : undefined,
     })
+  }
+
+  // Handle 404 errors
+  if ((ticketError as any)?.response?.status === 404 || (responsesError as any)?.response?.status === 404) {
+    return (
+      <div className="max-w-5xl mx-auto p-6">
+        <div className="bg-red-50 border border-red-200 rounded-2xl p-8 text-center">
+          <div className="text-red-600 text-5xl mb-4">🔍</div>
+          <h1 className="text-2xl font-bold text-red-900 mb-2">
+            {t('tickets.notFound') || 'Ticket Not Found'}
+          </h1>
+          <p className="text-red-700 mb-6">
+            {t('tickets.notFoundMessage') || 'The ticket you are looking for does not exist or you do not have permission to view it.'}
+          </p>
+          <button
+            onClick={() => router.push('/clientdashboard/tickets')}
+            className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-xl font-medium transition-colors"
+          >
+            {t('actions.backToTickets') || 'Back to Tickets'}
+          </button>
+        </div>
+      </div>
+    )
   }
 
   // Loading placeholder if ticket not loaded
