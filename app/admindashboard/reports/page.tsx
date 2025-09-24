@@ -307,7 +307,7 @@ export default function ReportsPage() {
       </div>
 
       {/* Key Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 gap-6">
         <MetricCard
           title="Total Tickets"
           value={reportsData.overview.total_tickets.value.toLocaleString()}
@@ -315,7 +315,7 @@ export default function ReportsPage() {
           changeType={getMetricChangeType(reportsData.overview.total_tickets.trend)}
           icon={<Ticket className="w-6 h-6 text-cyan-600" />}
         />
-        <MetricCard
+        {/*<MetricCard
           title="Resolution Rate"
           value={`${reportsData.overview.resolution_rate.value}%`}
           change={formatChangeText(reportsData.overview.resolution_rate.change)}
@@ -328,7 +328,7 @@ export default function ReportsPage() {
           change={formatChangeText(reportsData.overview.avg_response_time.change, true)}
           changeType={getMetricChangeType(reportsData.overview.avg_response_time.trend)}
           icon={<Clock className="w-6 h-6 text-orange-600" />}
-        />
+        />*/}
       
       </div>
 
@@ -374,7 +374,7 @@ export default function ReportsPage() {
           </ResponsiveContainer>
         </div>
 
-        {/* Response Time Analysis */}
+        {/* Response Time Analysis 
         <div className="bg-white p-6 rounded-lg shadow-sm border">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Average Response Time</h3>
           <ResponsiveContainer width="100%" height={300}>
@@ -386,7 +386,7 @@ export default function ReportsPage() {
               <Line type="monotone" dataKey="avgResponse" stroke="#06B6D4" strokeWidth={2} />
             </LineChart>
           </ResponsiveContainer>
-        </div>
+        </div>*/}
       </div>
 
       {/* Agent Performance */}

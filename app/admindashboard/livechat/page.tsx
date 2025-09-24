@@ -17,6 +17,8 @@ import { cn } from '@/lib/utils'
 import { chatService } from '@/services/chatService'
 import { useChatConnection } from '@/hooks/useChatConnection'
 import Picker, { EmojiClickData } from 'emoji-picker-react'
+import ChatAttachment from '@/components/ChatAttachment'
+import ChatFileUpload from '@/components/ChatFileUpload'
 
 /** TYPES **/
 interface AttachmentDTO { id: number | string; url?: string | null; path?: string | null; filename: string; mime?: string | null; size?: number | null }
@@ -348,8 +350,8 @@ export default function LiveChatPage(): React.JSX.Element {
     setMessages(prev => [...prev, optimistic])
 
     try {
-      // Prepare body: if message empty but we have files -> send a textual placeholder
-      const textToSend = (message && message.trim()) ? message.trim() : (filesToUpload.length > 0 ? '[Fichier(s) joint(s)]' : '')
+      // Prepare body: if message empty but we have files -> use the first filename
+      const textToSend = (message && message.trim()) ? message.trim() : (filesToUpload.length > 0 ? (filesToUpload[0]?.file?.name || '[Fichier sans nom]') : '')
       const convId = Number(selectedConversation) // ensure numeric
 
       console.debug('[UI] sending message', { conversation: convId, body: textToSend, filesCount: filesToUpload.length })
@@ -572,35 +574,17 @@ export default function LiveChatPage(): React.JSX.Element {
 </div>
                   </div>
                   <p className="text-sm whitespace-pre-wrap">
-                    {!(m.content === '[Fichier(s) joint(s)]' && m.attachments && m.attachments.length > 0) ? m.content : ''}
+                    {/* Only hide content if it matches the old generic text or a specific filename with attachments */}
+                    {!(m.content === '[Fichier(s) joint(s)]' || (m.attachments && m.attachments.length > 0 && m.attachments.some(a => m.content === a.filename))) || !m.attachments?.length ? m.content : ''}
                   </p>
 
                  {m.attachments && m.attachments.length > 0 && (
   <div className="mt-2 flex flex-col gap-2">
     {m.attachments.map((a) => (
-      <div key={String(a.id)} className="text-xs flex items-center gap-2">
-        {a.mime?.startsWith?.('image') || /\.(png|jpe?g|gif|webp|svg)$/i.test(a.filename) ? (
-          a.url ? (
-            <a href={a.url} target="_blank" rel="noreferrer" className="inline-block">
-              <img src={a.url} alt={a.filename} className="w-28 h-20 object-cover rounded" />
-            </a>
-          ) : (
-            <div className="w-28 h-20 bg-gray-100 rounded flex items-center justify-center">Preview</div>
-          )
-        ) : null}
-
-        <div className="flex-1">
-          {a.url ? (
-            <a href={a.url} download={a.filename} target="_blank" rel="noreferrer" className="text-xs text-blue-600 underline flex items-center gap-2">
-              <span>📎</span>
-              <span className="truncate max-w-[240px]">{a.filename}</span>
-            </a>
-          ) : (
-            <div className="text-xs text-gray-700">{a.filename}</div>
-          )}
-          {a.size ? <div className="text-[11px] text-gray-500">{Math.round((a.size/1024)*10)/10} KB</div> : null}
-        </div>
-      </div>
+      <ChatAttachment
+        key={String(a.id)}
+        attachment={a}
+      />
     ))}
   </div>
 )}
@@ -647,42 +631,30 @@ export default function LiveChatPage(): React.JSX.Element {
             ) : (
             <div className="bg-white border-t border-gray-200 p-4">
   <div className="flex items-end gap-3">
-    {/* Upload Files */}
-    <label className="relative p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer">
-      <Paperclip className="w-5 h-5" />
-      <input
-        ref={fileInputRef}
-        type="file"
-        multiple
-        onChange={onFileChange}
-        className="hidden"
-      />
-      {filesToUpload.length > 0 && (
-        <span className="absolute -top-1 -right-1 inline-flex items-center justify-center px-2 py-0.5 text-[10px] font-semibold leading-none text-white bg-cyan-600 rounded-full">{filesToUpload.length}</span>
-      )}
-    </label>
+    <ChatFileUpload
+      files={filesToUpload.map(f => f.file)}
+      onFilesChange={(files: File[]) => {
+        const newFiles: UploadFile[] = files.map(file => ({
+          id: Math.random().toString(36),
+          file: file,
+          preview: file.type.startsWith('image/') ? URL.createObjectURL(file) : ''
+        }))
+        setFilesToUpload(newFiles)
+      }}
+      onFileRemove={(index: number) => {
+        const newFiles = [...filesToUpload]
+        if (newFiles[index]?.preview) {
+          URL.revokeObjectURL(newFiles[index].preview)
+        }
+        newFiles.splice(index, 1)
+        setFilesToUpload(newFiles)
+      }}
+      maxSize={10}
+    />
 
     {/* Message + files preview area */}
     <div className="flex-1 relative">
-      {/* Selected files preview */}
-      {filesToUpload.length > 0 && (
-        <div className="mb-2 flex flex-wrap gap-2">
-          {filesToUpload.map(f => (
-            <div key={f.id} className="flex items-center gap-2 bg-gray-100 px-2 py-1 rounded-md text-xs">
-              {f.file.type.startsWith('image') ? (
-                <img src={f.preview} alt={f.file.name} className="w-8 h-6 object-cover rounded" />
-              ) : (
-                <span className="inline-flex w-8 h-6 items-center justify-center text-[12px]" aria-hidden="true">📎</span>
 
-              )}
-              <div className="max-w-[200px] truncate">{f.file.name}</div>
-              <button type="button" onClick={() => handleRemoveFile(f.id)} className="ml-2 p-1 rounded hover:bg-gray-200">
-                <X className="w-3 h-3" />
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
 
       <textarea
         value={message}

@@ -8,6 +8,8 @@ import { Conversation, ChatMessage, UserShort } from '@/types'
 import { useChatConnection } from '@/hooks/useChatConnection'
 import { useAppContext } from '@/context/Context'
 import { toast } from 'react-hot-toast'
+import ChatAttachment from '@/components/ChatAttachment'
+import ChatFileUpload from '@/components/ChatFileUpload'
 import {
   Search,
   Send,
@@ -331,60 +333,7 @@ export default function AgentClientChatPage() {
     })
   }
 
-  // New helpers: resolve attachment URL and provide download/open behavior
-  const getAttachmentUrl = (attachment: any) => {
-    return (
-      attachment?.url ||
-      attachment?.download_url ||
-      attachment?.path ||
-      attachment?.file_url ||
-      attachment?.link ||
-      null
-    )
-  }
 
-  const downloadAttachment = async (attachment: any) => {
-    const url = getAttachmentUrl(attachment)
-    const filename =
-      attachment?.name || attachment?.filename || (typeof url === 'string' ? url.split('/').pop() : 'file')
-
-    if (!url) {
-      toast.error('Attachment URL not available')
-      return
-    }
-
-    try {
-      // Try to open direct links in a new tab (viewer) — for same-origin or public URLs this will work well
-      if (typeof url === 'string' && (url.startsWith('http') || url.startsWith('//'))) {
-        // Create an anchor to trigger download where possible, otherwise open in new tab
-        const a = document.createElement('a')
-        a.href = url
-        a.target = '_blank'
-        // Set download attribute to suggest filename for same-origin resources
-        a.download = filename
-        document.body.appendChild(a)
-        a.click()
-        a.remove()
-        return
-      }
-
-      // Fallback: fetch the resource and force a download (handles protected endpoints that return blob)
-      const res = await fetch(url)
-      if (!res.ok) throw new Error('Failed to fetch attachment')
-      const blob = await res.blob()
-      const blobUrl = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = blobUrl
-      a.download = filename
-      document.body.appendChild(a)
-      a.click()
-      a.remove()
-      URL.revokeObjectURL(blobUrl)
-    } catch (e) {
-      console.error('Download failed', e)
-      toast.error('Failed to download attachment')
-    }
-  }
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -762,27 +711,13 @@ export default function AgentClientChatPage() {
                           
                           {message.attachments && message.attachments.length > 0 && (
                             <div className="mt-2 space-y-2">
-                              {message.attachments.map((attachment: any, index: number) => {
-                                const filename = attachment?.name || attachment?.filename || (attachment?.url || attachment?.path || '').split('/').pop() || 'File'
-                                return (
-                                  <div
-                                    key={index}
-                                    className={`flex items-center space-x-2 p-2 rounded ${
-                                      isCurrentUser ? 'bg-teal-600' : 'bg-gray-100'
-                                    }`}
-                                  >
-                                    <Paperclip className="w-4 h-4" />
-                                    <span title={filename} className="text-sm truncate">{filename}</span>
-                                    <button
-                                      onClick={() => downloadAttachment(attachment)}
-                                      className="ml-auto text-gray-700 hover:text-teal-600"
-                                      title="Download / Open"
-                                    >
-                                      <Download className="w-4 h-4" />
-                                    </button>
-                                  </div>
-                                )
-                              })}
+                              {message.attachments.map((attachment: any, index: number) => (
+                                <ChatAttachment
+                                  key={attachment.id || index}
+                                  attachment={attachment}
+                                  isFromCurrentUser={isCurrentUser}
+                                />
+                              ))}
                             </div>
                           )}
                           

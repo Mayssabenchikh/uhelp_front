@@ -196,7 +196,11 @@ export const chatService = {
     form.append('conversation_id', String(conversationId))
 
     let messageBody = body && body.trim() ? body.trim() : ''
-    if (!messageBody && files && files.length > 0) messageBody = '[Fichier(s) joint(s)]'
+    if (!messageBody && files && files.length > 0) {
+      // Use the first file's name if available
+      const firstFileName = files[0]?.name
+      messageBody = firstFileName || '[Fichier sans nom]'
+    }
     form.append('body', messageBody || 'Message vide')
 
     if (files && files.length > 0) {
@@ -312,6 +316,56 @@ async generateFAQ(ticket: string) {
     if (typeof window !== 'undefined') {
       try { localStorage.removeItem('token') } catch (e) { /* ignore */ }
     }
+  },
+
+  /**
+   * Download chat attachment with proper authentication
+   */
+  async downloadChatAttachment(attachmentId: string | number) {
+    const url = `${API_BASE}/chat/attachments/${attachmentId}/download`
+    
+    if (AUTH_STRATEGY === 'cookie') await ensureCsrf()
+    
+    const response = await fetchWithAuth(url, {
+      method: 'GET'
+    })
+    
+    if (!response.ok) {
+      throw new Error(`Failed to download attachment: ${response.status} ${response.statusText}`)
+    }
+    
+    return response
+  },
+
+  /**
+   * Get secure attachment URL for viewing (images, PDFs)
+   */
+  getSecureAttachmentUrl(attachmentId: string | number) {
+    const token = readStoredTokenSync()
+    console.log('Getting secure attachment URL:', { attachmentId, hasToken: !!token, tokenPrefix: token ? token.substring(0, 10) + '...' : 'none' })
+    if (token) {
+      const url = `${API_BASE}/chat/attachments/${attachmentId}/view?token=${encodeURIComponent(token)}`
+      console.log('Generated secure URL:', url)
+      return url
+    }
+    const fallbackUrl = `${API_BASE}/chat/attachments/${attachmentId}/view`
+    console.log('Generated fallback URL (no token):', fallbackUrl)
+    return fallbackUrl
+  },
+
+  /**
+   * Get attachment info for debugging
+   */
+  async getAttachmentInfo(attachmentId: string | number) {
+    const url = `${API_BASE}/chat/attachments/${attachmentId}/info`
+    
+    if (AUTH_STRATEGY === 'cookie') await ensureCsrf()
+    
+    const response = await fetchWithAuth(url, {
+      method: 'GET'
+    })
+    
+    return handleResponse(response)
   }
 }
 

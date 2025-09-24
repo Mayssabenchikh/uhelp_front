@@ -6,6 +6,8 @@ import { Conversation, ChatMessage } from '@/types'
 import { useChatConnection } from '@/hooks/useChatConnection'
 import { useAppContext } from '@/context/Context'
 import { useTranslation } from 'react-i18next'
+import ChatAttachment from '@/components/ChatAttachment'
+import ChatFileUpload from '@/components/ChatFileUpload'
 
 export default function LiveChatPage() {
   const [conversations, setConversations] = useState<Conversation[]>([])
@@ -454,10 +456,14 @@ export default function LiveChatPage() {
     }
   }
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      setFiles(Array.from(e.target.files))
-    }
+
+
+  const handleFilesChange = (newFiles: File[]) => {
+    setFiles(newFiles)
+  }
+
+  const handleFileRemove = (index: number) => {
+    setFiles(files.filter((_, i) => i !== index))
   }
 
   const scrollToBottom = () => {
@@ -573,25 +579,13 @@ export default function LiveChatPage() {
                       <p className="text-sm leading-relaxed">{message.message || ''}</p>
                       {Array.isArray(message.attachments) && message.attachments.length > 0 && (
                         <div className="mt-3 space-y-2">
-                          {message.attachments.map((a: any) => {
-                            const url = a.url || a.path || a.download_url || ''
-                            const mime = a.mime || a.mime_type || ''
-                            const name = a.filename || a.name || 'attachment'
-                            const isImage = typeof mime === 'string' ? mime.startsWith('image/') : /\.(png|jpe?g|gif|webp|svg)$/i.test(String(url))
-                            return (
-                              <div key={a.id || name} className={`rounded-xl p-3 ${message.user_id === user?.id ? 'bg-cyan-600/30' : 'bg-slate-50/60'}`}>
-                                {isImage && url ? (
-                                  <a href={url} target="_blank" rel="noreferrer">
-                                    <img src={url} alt={name} className="max-h-40 rounded-lg shadow-sm hover:shadow-md transition-shadow" />
-                                  </a>
-                                ) : (
-                                  <a href={url} target="_blank" rel="noreferrer" className="underline break-all hover:text-cyan-600 transition-colors">
-                                    📎 {name}
-                                  </a>
-                                )}
-                              </div>
-                            )
-                          })}
+                          {message.attachments.map((attachment: any) => (
+                            <ChatAttachment
+                              key={attachment.id || attachment.name || Math.random()}
+                              attachment={attachment}
+                              isFromCurrentUser={message.user_id === user?.id}
+                            />
+                          ))}
                         </div>
                       )}
                       <p className="text-xs mt-2 opacity-75 font-medium">
@@ -605,34 +599,56 @@ export default function LiveChatPage() {
 
               {/* Message Input */}
               <div className="p-6 border-t border-slate-200/60 bg-white/50 backdrop-blur-sm">
-                {files.length > 0 && (
-                  <div className="mb-3">
-                    {files.map((file, index) => (
-                      <span key={index} className="inline-block bg-gradient-to-r from-cyan-50 to-cyan-100 px-3 py-1.5 rounded-xl text-sm mr-2 border border-cyan-200 font-medium">
-                        📎 {file.name}
-                      </span>
-                    ))}
+                {/* File Upload Component */}
+                <ChatFileUpload
+                  files={files}
+                  onFilesChange={handleFilesChange}
+                  onFileRemove={handleFileRemove}
+                  disabled={loading}
+                />
+
+                {/* Message Input Area */}
+                <div className="flex gap-3 mt-4">
+                  <div className="flex-1 relative">
+                    <input
+                      type="text"
+                      value={newMessage}
+                      onChange={(e) => setNewMessage(e.target.value)}
+                      onKeyDown={(e) => { 
+                        if (e.key === 'Enter' && !e.shiftKey) { 
+                          e.preventDefault(); 
+                          void sendMessage() 
+                        } 
+                      }}
+                      placeholder={t('chat.typeMessage') || 'Tapez votre message...'}
+                      className="w-full px-4 py-3 pr-12 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-cyan-500/40 focus:border-cyan-500/40 transition-colors"
+                    />
                   </div>
-                )}
-                <div className="flex gap-3">
-                  <input
-                    type="text"
-                    value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void sendMessage() } }}
-                    placeholder={t('chat.typeMessage') || 'Type a message...'}
-                    className="flex-1 px-4 py-3 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-cyan-500/40"
-                  />
-                  <input type="file" className="hidden" id="file-upload" onChange={handleFileChange} />
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => void sendMessage()}
-                      disabled={loading || (!newMessage.trim() && files.length === 0)}
-                      className="px-6 py-3 bg-gradient-to-r from-cyan-600 to-cyan-700 text-white rounded-xl hover:from-cyan-700 hover:to-cyan-800 disabled:opacity-50 font-medium shadow-lg shadow-cyan-500/25 hover:shadow-xl hover:shadow-cyan-500/30 transition-all duration-200"
-                    >
-                      {loading ? '⏳ Sending...' : '🚀 Send'}
-                    </button>
-                  </div>
+                  
+                  {/* Send Button */}
+                  <button
+                    onClick={() => void sendMessage()}
+                    disabled={loading || (!newMessage.trim() && files.length === 0)}
+                    className="px-6 py-3 bg-gradient-to-r from-cyan-600 to-cyan-700 text-white rounded-xl hover:from-cyan-700 hover:to-cyan-800 disabled:opacity-50 disabled:cursor-not-allowed font-medium shadow-lg shadow-cyan-500/25 hover:shadow-xl hover:shadow-cyan-500/30 transition-all duration-200 flex items-center gap-2"
+                  >
+                    {loading ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                        Envoi...
+                      </>
+                    ) : (
+                      <>
+                        <span>Envoyer</span>
+                        <span className="text-lg">🚀</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {/* File Upload Hint */}
+                <div className="mt-2 text-xs text-slate-500 flex items-center gap-1">
+                  <span>💡</span>
+                  Formats supportés : Images, PDF, Documents, Archives (max 50MB par fichier)
                 </div>
               </div>
             </>
