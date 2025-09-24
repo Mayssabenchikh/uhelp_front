@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { chatService } from '@/services/chatService'
 import { Conversation, ChatMessage } from '@/types'
-import { getEcho, disconnectEcho } from '@/lib/echo'
+import { useChatConnection } from '@/hooks/useChatConnection'
 import { useAppContext } from '@/context/Context'
 import { useTranslation } from 'react-i18next'
 
@@ -20,54 +20,56 @@ export default function LiveChatPage() {
   const [aiError, setAiError] = useState<string | null>(null)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  const channelRef = useRef<any>(null)
   const { user } = useAppContext()
   const { t } = useTranslation()
+
+  // Handle new messages from WebSocket
+  const handleMessageReceived = useCallback((message: ChatMessage) => {
+    console.log('New message received:', message)
+    setMessages((prev) => {
+      // Remove any optimistic message from the same user with similar content
+      const withoutOptimistic = prev.filter(m => {
+        if (m.id > 1000000000000) { // Optimistic messages have timestamp IDs
+          return !(m.user_id === message.user_id && m.message.trim() === message.message.trim())
+        }
+        return true
+      })
+      
+      // Check if message already exists to avoid duplicates
+      const exists = withoutOptimistic.some(m => m.id === message.id)
+      if (exists) return withoutOptimistic
+      
+      return [...withoutOptimistic, message]
+    })
+  }, [])
+
+  // Handle typing indicators
+  const handleUserTyping = useCallback((data: { user_id: number; user_name: string }) => {
+    console.log('User is typing:', data)
+    // You can implement typing indicators UI here
+  }, [])
+
+  // Use chat connection hook
+  useChatConnection({
+    conversationId: selectedConversation?.id || null,
+    onMessageReceived: handleMessageReceived,
+    onUserTyping: handleUserTyping
+  })
 
   useEffect(() => {
     if (!user?.id) return
     loadConversations()
-    // Removed loadQuickResponses() - now only loaded when user clicks the generate button
-    return () => {
-      try { if (channelRef.current) channelRef.current.unsubscribe() } catch {}
-      disconnectEcho()
-    }
   }, [user?.id])
 
   useEffect(() => {
     if (selectedConversation) {
       loadMessages(selectedConversation.id)
-      subscribeToConversation(selectedConversation.id)
     }
   }, [selectedConversation])
 
   useEffect(() => {
     scrollToBottom()
   }, [messages])
-
-  const subscribeToConversation = (conversationId: number) => {
-    try {
-      const echo = getEcho()
-      if (channelRef.current) channelRef.current.unsubscribe()
-      const channel = echo.private(`conversation.${conversationId}`)
-      channelRef.current = channel
-      channel.listen('ChatMessageSent', (payload: any) => {
-        const msg: ChatMessage = {
-          id: payload.id,
-          conversation_id: payload.conversation_id,
-          user_id: payload.user_id,
-          user: { id: payload.user.id, name: payload.user.name },
-          message: payload.body,
-          attachments: Array.isArray(payload.attachments) ? payload.attachments : [],
-          created_at: payload.created_at,
-        }
-        setMessages((prev) => [...prev, msg])
-      })
-    } catch (e) {
-      // eslint-disable-next-line no-console
-      console.error('Echo subscribe failed', e)
-    }
-  }
 
   const loadConversations = async () => {
     try {
@@ -431,10 +433,9 @@ export default function LiveChatPage() {
       // clear only the controlled inputs when caller didn't provide overrides
       if (overrideText === undefined) setNewMessage('')
       if (overrideFiles === undefined) setFiles([])
-      // ensure we have server-confirmed messages
-      await loadMessages(conversationId)
+      // Don't reload all messages - let WebSocket handle the real message arrival
     } catch (err: any) {
-      // rollback
+      // rollback optimistic message on error
       setMessages((prev) => prev.filter(m => m.id !== tempId))
       setError(err.message || 'Failed to send message')
     } finally {

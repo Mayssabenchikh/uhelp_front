@@ -55,6 +55,7 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
     if (!token) return;
 
     let mounted = true;
+    let timeoutId: NodeJS.Timeout;
 
     const fetchUser = async () => {
       setIsLoading(true);
@@ -64,23 +65,34 @@ export const AppProvider = ({ children }: { children: React.ReactNode }) => {
         const payload = res.data?.user ?? res.data;
         setUser(payload);
       } catch (err: any) {
+        if (!mounted) return;
         const status = err?.response?.status;
         if (status === 401) {
           logout();
-          toast.error('Session expirée. Connecte-toi à nouveau.');
+          toast.error('Session expiree. Connecte-toi a nouveau.');
+        } else if (status === 429) {
+          // Rate limited - retry after a delay  
+          timeoutId = setTimeout(() => {
+            if (mounted) fetchUser();
+          }, 2000);
+          return;
         } else {
-          toast.error('Impossible de récupérer l’utilisateur.');
+          console.error('Error fetching user:', err);
+          toast.error('Impossible de recuperer utilisateur.');
         }
       } finally {
         if (mounted) setIsLoading(false);
       }
     };
 
-    fetchUser();
-    return () => { mounted = false; };
-  }, [token]);
+    // Debounce the API call to prevent multiple rapid calls
+    timeoutId = setTimeout(fetchUser, 100);
 
-  const login = async (email: string, password: string): Promise<AuthResult> => {
+    return () => {
+      mounted = false;
+      clearTimeout(timeoutId);
+    };
+  }, [token]);  const login = async (email: string, password: string): Promise<AuthResult> => {
     setIsLoading(true);
     try {
       const res = await axios.post('/api/login', { email, password }, {

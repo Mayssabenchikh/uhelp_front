@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useState } from 'react';
-import { User, Lock, Mail } from 'lucide-react';
+import { User, Lock, Mail, Eye, EyeOff } from 'lucide-react';
 import { useAppContext } from '@/context/Context';
 import toast from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
@@ -31,6 +31,11 @@ export default function AuthPage() {
     password: '',
     passwordConfirmation: '',
   });
+
+  // password visibility toggles
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
+  const [showRegisterPassword, setShowRegisterPassword] = useState(false);
+  const [showRegisterConfirm, setShowRegisterConfirm] = useState(false);
 
   const [loginErrors, setLoginErrors] = useState<LoginErrors>({ email: '', password: '' });
   const [registerErrors, setRegisterErrors] = useState<RegisterErrors>({
@@ -291,13 +296,21 @@ export default function AuthPage() {
                   <div className="w-full bg-gray-100 h-14 rounded-full grid grid-cols-[15%_85%] px-2 relative">
                     <Lock className="text-gray-400 text-lg self-center justify-self-center" />
                     <input
-                      type="password"
+                      type={showLoginPassword ? 'text' : 'password'}
                       placeholder="Password"
                       value={loginData.password}
                       onChange={e => handleLoginChange('password', e.target.value)}
                       className="bg-transparent outline-none border-none text-lg font-semibold text-gray-700 placeholder-gray-400"
                       disabled={isLoading}
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowLoginPassword(prev => !prev)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500"
+                      aria-label={showLoginPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showLoginPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    </button>
                   </div>
                   {loginErrors.password && <p className="text-red-500 text-sm mt-1 ml-4">{loginErrors.password}</p>}
                 </div>
@@ -352,13 +365,21 @@ export default function AuthPage() {
                   <div className="w-full bg-gray-100 h-14 rounded-full grid grid-cols-[15%_85%] px-2 relative">
                     <Lock className="text-gray-400 text-lg self-center justify-self-center" />
                     <input
-                      type="password"
+                      type={showRegisterPassword ? 'text' : 'password'}
                       placeholder="Password"
                       value={registerData.password}
                       onChange={e => handleRegisterChange('password', e.target.value)}
                       className="bg-transparent outline-none border-none text-lg font-semibold text-gray-700 placeholder-gray-400"
                       disabled={isLoading}
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowRegisterPassword(prev => !prev)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500"
+                      aria-label={showRegisterPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showRegisterPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    </button>
                   </div>
                   {registerErrors.password && <p className="text-red-500 text-sm mt-1 ml-4">{registerErrors.password}</p>}
                 </div>
@@ -367,13 +388,21 @@ export default function AuthPage() {
                   <div className="w-full bg-gray-100 h-14 rounded-full grid grid-cols-[15%_85%] px-2 relative">
                     <Lock className="text-gray-400 text-lg self-center justify-self-center" />
                     <input
-                      type="password"
+                      type={showRegisterConfirm ? 'text' : 'password'}
                       placeholder="Confirm Password"
                       value={registerData.passwordConfirmation}
                       onChange={e => handleRegisterChange('passwordConfirmation', e.target.value)}
                       className="bg-transparent outline-none border-none text-lg font-semibold text-gray-700 placeholder-gray-400"
                       disabled={isLoading}
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowRegisterConfirm(prev => !prev)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500"
+                      aria-label={showRegisterConfirm ? 'Hide password' : 'Show password'}
+                    >
+                      {showRegisterConfirm ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    </button>
                   </div>
                   {registerErrors.passwordConfirmation && (
                     <p className="text-red-500 text-sm mt-1 ml-4">{registerErrors.passwordConfirmation}</p>

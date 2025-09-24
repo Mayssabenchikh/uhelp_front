@@ -33,7 +33,7 @@ export function getEcho(): Echo<any> {
           console.log('Echo auth - Token found:', !!token) // Debug log
           console.log('Echo auth - Channel:', channel.name) // Debug log
 
-          fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}/broadcasting/auth`, {
+          fetch(`${process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_ROOT || 'http://127.0.0.1:8000'}/broadcasting/auth`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',

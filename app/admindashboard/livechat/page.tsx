@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useRef, useState, useCallback } from 'react'
 import {
   Search,
   Info,
@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { chatService } from '@/services/chatService'
+import { useChatConnection } from '@/hooks/useChatConnection'
 import Picker, { EmojiClickData } from 'emoji-picker-react'
 
 /** TYPES **/
@@ -98,6 +99,42 @@ export default function LiveChatPage(): React.JSX.Element {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const [conversationDetails, setConversationDetails] = useState<ConversationDetails | null>(null)
   const [showInfoModal, setShowInfoModal] = useState(false)
+
+  // WebSocket handler for new messages
+  const handleMessageReceived = useCallback((incomingMessage: any) => {
+    console.log('New message received via WebSocket:', incomingMessage)
+    
+    const newMessage: ChatMessage = {
+      id: incomingMessage.id,
+      sender: mapSender(incomingMessage.user?.role),
+      senderName: incomingMessage.user?.name || 'Unknown',
+      content: incomingMessage.message || incomingMessage.body || '',
+      timestamp: incomingMessage.created_at || new Date().toISOString(),
+      attachments: incomingMessage.attachments || []
+    }
+    
+    setMessages((prev) => {
+      // Remove any optimistic message from the same user with similar content
+      const withoutOptimistic = prev.filter(m => {
+        if (String(m.id).length > 12) { // Optimistic messages have timestamp IDs
+          return !(m.senderName === newMessage.senderName && m.content.trim() === newMessage.content.trim())
+        }
+        return true
+      })
+      
+      // Check if message already exists to avoid duplicates
+      const exists = withoutOptimistic.some(m => String(m.id) === String(newMessage.id))
+      if (exists) return withoutOptimistic
+      
+      return [...withoutOptimistic, newMessage]
+    })
+  }, [])
+
+  // Use chat connection hook
+  useChatConnection({
+    conversationId: selectedConversation ? Number(selectedConversation) : null,
+    onMessageReceived: handleMessageReceived
+  })
 
   // EMOJI
   const handleEmojiClick = (emojiObject: EmojiClickData, _event: any) => setMessage(prev => prev + emojiObject.emoji)
@@ -360,11 +397,8 @@ export default function LiveChatPage(): React.JSX.Element {
         }))
       }
 
-      // replace optimistic with server message
-      setMessages(prev => {
-        const filtered = prev.filter(m => String(m.id) !== String(tempId))
-        return [...filtered, serverMsg]
-      })
+      // Message sent successfully - WebSocket will handle adding the real message
+      // The optimistic message will be replaced by handleMessageReceived
 
       // cleanup previews and input
       filesToUpload.forEach(f => URL.revokeObjectURL(f.preview))

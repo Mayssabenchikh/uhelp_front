@@ -1,6 +1,7 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
+import { Eye, EyeOff } from 'lucide-react';
 
 type LoginData = { email: string; password: string };
 type RegisterData = { name: string; email: string; password: string; passwordConfirmation: string };
@@ -32,6 +33,9 @@ export default function AuthMobile({
   isLoading,
   toggleMode,
 }: Props) {
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
+  const [showRegisterPassword, setShowRegisterPassword] = useState(false);
+  const [showRegisterConfirm, setShowRegisterConfirm] = useState(false);
   return (
     <div className="md:hidden p-6 relative z-30">
       <div className="max-w-md mx-auto">
@@ -58,24 +62,42 @@ export default function AuthMobile({
             />
             {registerErrors.email && <p className="text-red-500 text-sm">{registerErrors.email}</p>}
 
-            <input
-              type="password"
-              placeholder="Password"
-              value={registerData.password}
-              onChange={e => onRegisterChange('password', e.target.value)}
-              className="w-full bg-gray-100 h-12 rounded-md px-3 text-sm outline-none"
-              disabled={isLoading}
-            />
+            <div className="relative">
+              <input
+                type={showRegisterPassword ? 'text' : 'password'}
+                placeholder="Password"
+                value={registerData.password}
+                onChange={e => onRegisterChange('password', e.target.value)}
+                className="w-full bg-gray-100 h-12 rounded-md px-3 text-sm outline-none"
+                disabled={isLoading}
+              />
+              <button
+                type="button"
+                onClick={() => setShowRegisterPassword(prev => !prev)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500"
+              >
+                {showRegisterPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              </button>
+            </div>
             {registerErrors.password && <p className="text-red-500 text-sm">{registerErrors.password}</p>}
 
-            <input
-              type="password"
-              placeholder="Confirm Password"
-              value={registerData.passwordConfirmation}
-              onChange={e => onRegisterChange('passwordConfirmation', e.target.value)}
-              className="w-full bg-gray-100 h-12 rounded-md px-3 text-sm outline-none"
-              disabled={isLoading}
-            />
+            <div className="relative">
+              <input
+                type={showRegisterConfirm ? 'text' : 'password'}
+                placeholder="Confirm Password"
+                value={registerData.passwordConfirmation}
+                onChange={e => onRegisterChange('passwordConfirmation', e.target.value)}
+                className="w-full bg-gray-100 h-12 rounded-md px-3 text-sm outline-none"
+                disabled={isLoading}
+              />
+              <button
+                type="button"
+                onClick={() => setShowRegisterConfirm(prev => !prev)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500"
+              >
+                {showRegisterConfirm ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              </button>
+            </div>
             {registerErrors.passwordConfirmation && <p className="text-red-500 text-sm">{registerErrors.passwordConfirmation}</p>}
 
             <button
@@ -106,14 +128,23 @@ export default function AuthMobile({
             />
             {loginErrors.email && <p className="text-red-500 text-sm">{loginErrors.email}</p>}
 
-            <input
-              type="password"
-              placeholder="Password"
-              value={loginData.password}
-              onChange={e => onLoginChange('password', e.target.value)}
-              className="w-full bg-gray-100 h-12 rounded-md px-3 text-sm outline-none"
-              disabled={isLoading}
-            />
+            <div className="relative">
+              <input
+                type={showLoginPassword ? 'text' : 'password'}
+                placeholder="Password"
+                value={loginData.password}
+                onChange={e => onLoginChange('password', e.target.value)}
+                className="w-full bg-gray-100 h-12 rounded-md px-3 text-sm outline-none"
+                disabled={isLoading}
+              />
+              <button
+                type="button"
+                onClick={() => setShowLoginPassword(prev => !prev)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500"
+              >
+                {showLoginPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              </button>
+            </div>
             {loginErrors.password && <p className="text-red-500 text-sm">{loginErrors.password}</p>}
 
             <button

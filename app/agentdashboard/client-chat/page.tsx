@@ -1,11 +1,11 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useRouter } from 'next/navigation'
 import { chatService } from '@/services/chatService'
 import { Conversation, ChatMessage, UserShort } from '@/types'
-import { getEcho, disconnectEcho } from '@/lib/echo'
+import { useChatConnection } from '@/hooks/useChatConnection'
 import { useAppContext } from '@/context/Context'
 import { toast } from 'react-hot-toast'
 import {
@@ -98,30 +98,45 @@ export default function AgentClientChatPage() {
 
   // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  const channelRef = useRef<any>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { user } = useAppContext()
   const { t } = useTranslation()
+
+  // Handle new messages from WebSocket
+  const handleMessageReceived = useCallback((message: ChatMessage) => {
+    console.log('New message received:', message)
+    setMessages((prev) => {
+      // Check if message already exists to avoid duplicates
+      const exists = prev.some(m => m.id === message.id)
+      if (exists) return prev
+      return [...prev, message]
+    })
+  }, [])
+
+  // Handle typing indicators
+  const handleUserTyping = useCallback((data: { user_id: number; user_name: string }) => {
+    console.log('User is typing:', data)
+    // You can implement typing indicators UI here
+  }, [])
+
+  // Use chat connection hook
+  useChatConnection({
+    conversationId: selectedConversation?.id ? Number(selectedConversation.id) : null,
+    onMessageReceived: handleMessageReceived,
+    onUserTyping: handleUserTyping
+  })
 
   // Effects
   useEffect(() => {
     if (!user?.id) return
     loadConversations()
     loadQuickResponses()
-    
-    return () => {
-      try {
-        if (channelRef.current) channelRef.current.unsubscribe()
-      } catch {}
-      disconnectEcho()
-    }
   }, [user?.id])
 
   useEffect(() => {
     if (selectedConversation) {
       loadMessages(selectedConversation.id)
       loadConversationDetails(selectedConversation.id)
-      subscribeToConversation(selectedConversation.id)
     }
   }, [selectedConversation])
 
@@ -262,43 +277,7 @@ export default function AgentClientChatPage() {
     }
   }
 
-  const subscribeToConversation = (conversationId: number | string) => {
-    try {
-      const echo = getEcho()
-      if (channelRef.current) channelRef.current.unsubscribe()
-      
-      const channel = echo.private(`conversation.${conversationId}`)
-      channelRef.current = channel
-
-      channel.listen('ChatMessageSent', (payload: any) => {
-        const msg: ChatMessage = {
-          id: payload.id ?? Date.now(),
-          conversation_id: payload.conversation_id ?? conversationId,
-          user_id: payload.user_id ?? payload.sender_id,
-          user: { 
-            id: payload.user?.id ?? payload.user_id ?? payload.sender_id, 
-            name: payload.user?.name ?? payload.sender?.name ?? 'User',
-            avatar: payload.user?.avatar ?? payload.sender?.avatar ?? null
-          },
-          message: payload.body ?? payload.message ?? payload.content ?? '',
-          attachments: Array.isArray(payload.attachments) ? payload.attachments : [],
-          created_at: payload.created_at ?? new Date().toISOString(),
-        }
-        setMessages((prev) => [...prev, msg])
-      })
-
-      channel.listenForWhisper('typing', (e: any) => {
-        if (e.user_id !== user?.id) {
-          setTypingUsers(prev => [...prev.filter(id => id !== e.user_id), e.user_id])
-          setTimeout(() => {
-            setTypingUsers(prev => prev.filter(id => id !== e.user_id))
-          }, 3000)
-        }
-      })
-    } catch (e) {
-      console.error('Echo subscribe failed', e)
-    }
-  }
+  // Function removed - now handled by useChatConnection hook
 
   const sendMessage = async () => {
     if (!selectedConversation || (!newMessage.trim() && files.length === 0)) return
@@ -318,8 +297,7 @@ export default function AgentClientChatPage() {
       setFiles([])
       setShowEmojiPicker(false)
       
-      // Reload messages to get the new one
-      await loadMessages(selectedConversation.id)
+      // Message sent successfully - WebSocket will handle adding the real message
     } catch (error) {
       console.error('Error sending message:', error)
       toast.error('Error sending message')

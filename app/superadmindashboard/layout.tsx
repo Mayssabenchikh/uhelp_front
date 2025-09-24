@@ -228,15 +228,13 @@ const handleExportClick = async () => {
                 </li>
               )
             })}
+
+            {/* FAQ admin menu */}
             <li>
-              <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors text-cyan-100 hover:bg-white hover:bg-opacity-10">
-                <LogOut className="w-5 h-5" />
-                {t('nav.logout')}
-              </button>
-            </li>
-            {/* Language Selector */}
-            <li className="pt-2">
-              <LanguageSelector variant="minimal" />
+              <Link href="/superadmindashboard/faq" className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-cyan-100 hover:bg-white hover:bg-opacity-10">
+                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 2v6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                FAQ Management
+              </Link>
             </li>
           </ul>
         </nav>

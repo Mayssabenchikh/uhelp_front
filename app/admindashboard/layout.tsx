@@ -18,6 +18,7 @@ import {
   Plus,
   Menu,
   X,
+  HelpCircle,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAppContext } from '@/context/Context'
@@ -87,6 +88,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         return { title: t('nav.liveChat'), subtitle: t('chat.monitorAndJoin'),  showSearch: false, searchPlaceholder: ''}
       case '/admindashboard/reports':
         return { title: t('nav.reports'), subtitle: t('reports.viewMetrics'),  showSearch: false, searchPlaceholder: '' }
+      case '/admindashboard/faq':
+        return { title: 'FAQ Management', subtitle: 'Review and manage AI-generated FAQs', showSearch: false, searchPlaceholder: '' }
       default:
         return { title: t('dashboard.welcome', { name: userName }), subtitle: t('dashboard.subtitle'), showSearch: true, searchPlaceholder: t('actions.search') }
     }
@@ -235,10 +238,29 @@ const handleExportClick = async () => {
                 </li>
               )
             })}
+
+            {/* FAQ admin menu */}
             <li>
-              <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors text-cyan-100 hover:bg-white hover:bg-opacity-10">
+              <Link 
+                href="/admindashboard/faq" 
+                className={cn(
+                  "w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors",
+                  pathname === '/admindashboard/faq' ? "bg-white bg-opacity-20 text-white font-medium" : "text-cyan-100 hover:bg-white hover:bg-opacity-10"
+                )}
+              >
+                <HelpCircle className="w-5 h-5" />
+                FAQ Management
+              </Link>
+            </li>
+
+            {/* Logout Button */}
+            <li className="mt-4 border-t border-cyan-300 pt-4">
+              <button
+                onClick={handleLogout}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-cyan-100 hover:bg-red-500 hover:bg-opacity-20 hover:text-white transition-colors"
+              >
                 <LogOut className="w-5 h-5" />
-                {t('nav.logout')}
+                {t('auth.logout', { defaultValue: 'Logout' })}
               </button>
             </li>
           </ul>
